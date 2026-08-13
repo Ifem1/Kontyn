@@ -93,3 +93,30 @@ def test_ready_action_reserves_exact_amount(direct_vm, direct_deploy, direct_ali
     state = json.loads(contract.get_treasury_state(org_id))
     assert state == {"available_wei": "15", "reserved_wei": "10", "total_wei": "25"}
     assert json.loads(contract.get_action(org_id, "1"))["status"] == "ALLOCATED"
+
+def test_safe_abstention_aliases_are_canonicalized(direct_vm, direct_deploy, direct_alice):
+    contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    contract.add_capability(org_id, CAPABILITY)
+    raw = {
+        "decision": "ABSTAIN", "evidence_quality": "INSUFFICIENT",
+        "kpi_direction": "NEUTRAL", "mission_state": "INCONCLUSIVE",
+        "priority": "LOW", "risk_tier": "LOW", "capability_id": "renew",
+        "spend_amount_wei": 0, "short_reason": "Evidence is insufficient.",
+    }
+    decision = contract._normalize_decision(raw)
+    assert decision["evidence_quality"] == "WEAK"
+    assert decision["kpi_direction"] == "UNKNOWN"
+    assert decision["risk_tier"] == "TIER_0"
+    assert decision["capability_id"] == ""
+    assert decision["spend_amount_wei"] == "0"
+    assert contract._valid_decision(decision, contract._capability_id_snapshot(org_id))
+
+def test_normalization_never_grants_proposal_authority(direct_vm, direct_deploy, direct_alice):
+    contract, _ = create(direct_vm, direct_deploy, direct_alice)
+    decision = contract._normalize_decision({
+        "decision": "PROPOSE_CAPABILITY", "evidence_quality": "WEAK",
+        "kpi_direction": "UNKNOWN", "mission_state": "AT_RISK", "priority": "HIGH",
+        "risk_tier": "TIER_1", "capability_id": "invented", "spend_amount_wei": "1",
+        "short_reason": "Unsupported proposal.",
+    })
+    assert not contract._valid_decision(decision, [])

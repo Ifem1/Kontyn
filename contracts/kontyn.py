@@ -21,6 +21,7 @@ class KontynProtocol(gl.Contract):
     charters: TreeMap[str, str]
     policies: TreeMap[str, str]
     capabilities: TreeMap[str, str]
+    capability_ids: TreeMap[str, str]
     capability_counts: TreeMap[str, u32]
     epochs: TreeMap[str, str]
     actions: TreeMap[str, str]
@@ -82,7 +83,23 @@ class KontynProtocol(gl.Contract):
             urls.extend([record["source_url"], record["metadata_url"], record["license_url"]])
         return urls
 
-    def _valid_decision(self, decision: typing.Any, org_id: str) -> bool:
+    def _normalize_decision(self, raw: typing.Any) -> typing.Any:
+        """Canonicalize only harmless LLM aliases; never invent an action or amount."""
+        if not isinstance(raw, dict): return raw
+        decision = dict(raw)
+        if decision.get("evidence_quality") == "INSUFFICIENT": decision["evidence_quality"] = "WEAK"
+        if decision.get("kpi_direction") == "NEUTRAL": decision["kpi_direction"] = "UNKNOWN"
+        if isinstance(decision.get("spend_amount_wei"), int) and decision["spend_amount_wei"] >= 0: decision["spend_amount_wei"] = str(decision["spend_amount_wei"])
+        # An abstention cannot select authority, spend funds, or carry an unknown tier.
+        if decision.get("decision") == "ABSTAIN":
+            decision["capability_id"] = ""
+            decision["spend_amount_wei"] = "0"
+            # The risk label has no financial meaning for an abstention, so map
+            # provider aliases such as LOW/UNKNOWN to the least-privileged tier.
+            decision["risk_tier"] = "TIER_0"
+        return decision
+
+    def _valid_decision(self, decision: typing.Any, allowed_capabilities: typing.Any) -> bool:
         if not isinstance(decision, dict):
             return False
         if decision.get("mission_state") not in ("ON_TRACK", "AT_RISK", "OFF_TRACK", "INCONCLUSIVE"):
@@ -95,18 +112,53 @@ class KontynProtocol(gl.Contract):
             return False
         if decision.get("kpi_direction") not in ("IMPROVING", "STABLE", "DECLINING", "UNKNOWN"):
             return False
+        if decision.get("risk_tier") not in ("TIER_0", "TIER_1", "TIER_2"):
+            return False
         if not isinstance(decision.get("short_reason"), str) or len(decision["short_reason"]) > MAX_REASON:
             return False
         if not isinstance(decision.get("spend_amount_wei"), str) or not decision["spend_amount_wei"].isdigit():
             return False
         if decision["decision"] == "PROPOSE_CAPABILITY":
             cap_id = decision.get("capability_id", "")
-            return isinstance(cap_id, str) and self.capabilities.get(org_id + ":" + cap_id, "") != ""
+            return isinstance(cap_id, str) and cap_id in allowed_capabilities
         return decision.get("capability_id", "") == "" and decision["spend_amount_wei"] == "0"
 
-    def _assess(self, org_id: str, sources: typing.Any) -> str:
+    def _capability_id_snapshot(self, org_id: str) -> typing.Any:
+        count = self.capability_counts.get(org_id, u32(0)); ids = []
+        for index in range(int(count)):
+            cap_id = self.capability_ids.get(org_id + ":" + str(index), "")
+            if cap_id != "": ids.append(cap_id)
+        return ids
+
+    def _assess(self, sources: typing.Any, allowed_capabilities: typing.Any) -> str:
         """Leader and validators independently retrieve sources; validators check substance."""
         frozen = json.dumps(sources, sort_keys=True)
+        # These pure local helpers deliberately do not capture ``self``.  GenVM
+        # validator closures run in nondeterministic mode, where reading contract
+        # storage through a captured contract object is unsupported.
+        def normalize_for_validator(raw: typing.Any) -> typing.Any:
+            if not isinstance(raw, dict): return raw
+            decision = dict(raw)
+            if decision.get("evidence_quality") == "INSUFFICIENT": decision["evidence_quality"] = "WEAK"
+            if decision.get("kpi_direction") == "NEUTRAL": decision["kpi_direction"] = "UNKNOWN"
+            if isinstance(decision.get("spend_amount_wei"), int) and decision["spend_amount_wei"] >= 0: decision["spend_amount_wei"] = str(decision["spend_amount_wei"])
+            if decision.get("decision") == "ABSTAIN":
+                decision["capability_id"] = ""; decision["spend_amount_wei"] = "0"; decision["risk_tier"] = "TIER_0"
+            return decision
+        def valid_for_validator(decision: typing.Any) -> bool:
+            if not isinstance(decision, dict): return False
+            if decision.get("mission_state") not in ("ON_TRACK", "AT_RISK", "OFF_TRACK", "INCONCLUSIVE"): return False
+            if decision.get("priority") not in ("LOW", "NORMAL", "HIGH", "URGENT"): return False
+            if decision.get("decision") not in ("ABSTAIN", "OBSERVE", "PROPOSE_CAPABILITY"): return False
+            if decision.get("evidence_quality") not in ("WEAK", "MODERATE", "STRONG"): return False
+            if decision.get("kpi_direction") not in ("IMPROVING", "STABLE", "DECLINING", "UNKNOWN"): return False
+            if decision.get("risk_tier") not in ("TIER_0", "TIER_1", "TIER_2"): return False
+            if not isinstance(decision.get("short_reason"), str) or len(decision["short_reason"]) > MAX_REASON: return False
+            if not isinstance(decision.get("spend_amount_wei"), str) or not decision["spend_amount_wei"].isdigit(): return False
+            if decision["decision"] == "PROPOSE_CAPABILITY":
+                cap_id = decision.get("capability_id", "")
+                return isinstance(cap_id, str) and cap_id in allowed_capabilities
+            return decision.get("capability_id", "") == "" and decision["spend_amount_wei"] == "0"
         def leader() -> str:
             evidence = ""
             for source in sources:
@@ -121,7 +173,8 @@ class KontynProtocol(gl.Contract):
                 candidate = leader_result.calldata
                 if isinstance(candidate, str):
                     candidate = json.loads(candidate)
-                if not self._valid_decision(candidate, org_id):
+                candidate = normalize_for_validator(candidate)
+                if not valid_for_validator(candidate):
                     return False
                 evidence = ""
                 for source in sources:
@@ -182,7 +235,9 @@ class KontynProtocol(gl.Contract):
         if self.capability_counts.get(org_id, u32(0)) >= 32:
             self._fail("CAPABILITY_LIMIT")
         self.capabilities[org_id + ":" + cap_id] = json.dumps(cap, sort_keys=True)
-        self.capability_counts[org_id] = u32(self.capability_counts.get(org_id, u32(0)) + 1)
+        count = self.capability_counts.get(org_id, u32(0))
+        self.capability_ids[org_id + ":" + str(count)] = cap_id
+        self.capability_counts[org_id] = u32(count + 1)
 
     @gl.public.write.payable
     def fund_org(self, org_id: str) -> None:
@@ -208,8 +263,9 @@ class KontynProtocol(gl.Contract):
         manifest = self._parse(source_manifest_json, "MANIFEST"); sources = manifest.get("sources", []) if isinstance(manifest, dict) else []
         charter = self._parse(self.charters[org_id], "CHARTER")
         if sources != self._sources(charter): self._fail("SOURCE_MANIFEST_LOCKED")
-        decision = self._parse(self._assess(org_id, sources), "DECISION")
-        if not self._valid_decision(decision, org_id): self._fail("DECISION_INVALID")
+        allowed_capabilities = self._capability_id_snapshot(org_id)
+        decision = self._normalize_decision(self._parse(self._assess(sources, allowed_capabilities), "DECISION"))
+        if not self._valid_decision(decision, allowed_capabilities): self._fail("DECISION_INVALID")
         action_id = ""
         if decision["decision"] == "PROPOSE_CAPABILITY":
             cap = self._parse(self.capabilities[org_id + ":" + decision["capability_id"]], "CAPABILITY")

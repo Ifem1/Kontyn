@@ -14,11 +14,22 @@ const founder = createAccount(founderKey); const beneficiary = createAccount(ben
 const founderClient = createClient({ chain: studionet, account: founder });
 const beneficiaryClient = createClient({ chain: studionet, account: beneficiary });
 const challengerClient = createClient({ chain: studionet, account: challenger });
-const wait = (client, hash) => client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, interval: 5000, retries: 90 });
-const write = async (client, address, functionName, args, value = 0n) => { const hash = await client.writeContract({ address, functionName, args, value }); await wait(client, hash); return hash; };
+// Studio enforces both per-minute and hourly RPC limits.  Three receipt reads per
+// minute keeps this verification flow well below either cap, even under finality delay.
+const wait = (client, hash) => client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, interval: 20000, retries: 30, fullTransaction: true });
+const assertSuccessful = (receipt, hash) => {
+  if (receipt.result_name && receipt.result_name !== "MAJORITY_AGREE") {
+    throw new Error(`Transaction ${hash} finalized without execution: ${receipt.result_name}`);
+  }
+};
+const write = async (client, address, functionName, args, value = 0n) => {
+  const hash = await client.writeContract({ address, functionName, args, value });
+  assertSuccessful(await wait(client, hash), hash);
+  return hash;
+};
 
 const deployHash = await founderClient.deployContract({ code: new Uint8Array(readFileSync("contracts/kontyn.py")), args: [], value: 0n });
-const deployReceipt = await wait(founderClient, deployHash); const address = deployReceipt.data?.contract_address;
+const deployReceipt = await wait(founderClient, deployHash); assertSuccessful(deployReceipt, deployHash); const address = deployReceipt.data?.contract_address;
 if (!address) throw new Error("Deployment did not return an address.");
 const binding = { source_url: "https://example.com/", metadata_url: "https://example.com/", license_url: "https://example.com/", version_hash: "example-domain-v1" };
 const charter = JSON.stringify({ mission: "Exercise bounded treasury lifecycle", source_bindings: [binding] });
