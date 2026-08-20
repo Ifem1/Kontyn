@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { createAccount, createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
-import { TransactionStatus } from "genlayer-js/types";
+import { ExecutionResult, TransactionStatus } from "genlayer-js/types";
 
 const founderKey = process.env.KONTYN_TEST_FOUNDER_KEY;
 const beneficiaryKey = process.env.KONTYN_TEST_BENEFICIARY_KEY;
@@ -19,9 +19,9 @@ const challengerClient = createClient({ chain: studionet, account: challenger })
 // minute keeps this verification flow well below either cap, even under finality delay.
 const wait = (client, hash) => client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, interval: 20000, retries: 30, fullTransaction: true });
 const assertSuccessful = (receipt, hash) => {
-  if (receipt.result_name && receipt.result_name !== "MAJORITY_AGREE") {
-    throw new Error(`Transaction ${hash} finalized without execution: ${receipt.result_name}`);
-  }
+  const consensus = receipt.resultName ?? receipt.result_name;
+  const execution = receipt.txExecutionResultName ?? receipt.tx_execution_result_name;
+  if (consensus !== "MAJORITY_AGREE" || (execution && execution !== ExecutionResult.FINISHED_WITH_RETURN)) throw new Error(`Transaction ${hash} did not execute successfully: consensus=${consensus ?? "unknown"}, execution=${execution ?? "unknown"}`);
 };
 const write = async (client, address, functionName, args, value = 0n) => {
   const hash = await client.writeContract({ address, functionName, args, value });
@@ -45,7 +45,8 @@ const immutableHash = async (url) => {
 const canonicalJson = (value) => JSON.stringify(value && typeof value === "object" && !Array.isArray(value)
   ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, JSON.parse(canonicalJson(value[key]))]))
   : Array.isArray(value) ? value.map((entry) => JSON.parse(canonicalJson(entry))) : value);
-const sourceUrl = process.env.KONTYN_EVIDENCE_URL ?? "https://example.com/";
+const sourceUrl = process.env.KONTYN_EVIDENCE_URL;
+if (!sourceUrl) throw new Error("KONTYN_EVIDENCE_URL is required; refusing to run a positive proof against placeholder evidence.");
 const sourceHash = await immutableHash(sourceUrl);
 const binding = { source_url: sourceUrl, metadata_url: sourceUrl, license_url: sourceUrl, source_hash: sourceHash, metadata_hash: sourceHash, license_hash: sourceHash, version_hash: sourceHash };
 const charter = JSON.stringify({ mission: "Exercise bounded treasury lifecycle", source_bindings: [binding] });

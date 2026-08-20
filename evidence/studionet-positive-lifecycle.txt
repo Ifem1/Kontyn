@@ -8,6 +8,7 @@ The organization charter and its pre-approved capability registry identify the
 mission, permitted action, beneficiary, amount ceiling, challenge period, and
 treasury limits. This record does not create or amend any of those terms.
 
-This document reports a factual, test-only service condition. It authorizes no
-production payment, no recipient, no amount other than the documented test
-cost, and no action beyond what the organization has already pre-approved.
+This document reports a factual, test-only service condition. Settlement is
+eligible only under an organization's already-approved capability, beneficiary,
+amount ceiling, treasury policy, and challenge process. It creates no production
+authority and authorizes no action beyond those pre-approved terms.
