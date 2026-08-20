@@ -1,8 +1,11 @@
 import json
+import hashlib
 import pytest
 
 HASH = "a" * 64
-CHARTER = json.dumps({"mission": "Keep a public resource available", "source_bindings": [{"source_url":"https://example.com/mission-status", "metadata_url":"https://example.com/mission-status", "license_url":"https://example.com/license", "source_hash":HASH, "metadata_hash":HASH, "license_hash":HASH, "version_hash":"source-v1-hash"}]})
+CHARTER_DATA = {"mission": "Keep a public resource available", "source_bindings": [{"source_url":"https://example.com/mission-status", "metadata_url":"https://example.com/mission-status", "license_url":"https://example.com/license", "source_hash":HASH, "metadata_hash":HASH, "license_hash":HASH, "version_hash":"source-v1-hash"}]}
+CHARTER = json.dumps(CHARTER_DATA)
+CHARTER_HASH = hashlib.sha256(json.dumps(CHARTER_DATA, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 BENEFICIARY = "0x1111111111111111111111111111111111111111"
 CAPABILITY = json.dumps({"id": "renew", "action_type": "RENEW_PUBLIC_RESOURCE", "risk_tier": "TIER_1", "max_amount_wei": "0"})
 PAY_CAPABILITY = json.dumps({"id": "grant", "action_type": "PAY_GRANT_RECIPIENT", "risk_tier": "TIER_1", "max_amount_wei": "100", "beneficiary": BENEFICIARY})
@@ -10,7 +13,7 @@ PAY_CAPABILITY = json.dumps({"id": "grant", "action_type": "PAY_GRANT_RECIPIENT"
 def create(direct_vm, direct_deploy, direct_alice):
     contract = direct_deploy("contracts/kontyn.py")
     direct_vm.sender = direct_alice
-    return contract, contract.create_org("Public Resource", "hash-12345678", CHARTER)
+    return contract, contract.create_org("Public Resource", CHARTER_HASH, CHARTER)
 
 def test_create_and_read_org(direct_vm, direct_deploy, direct_alice):
     contract, org_id = create(direct_vm, direct_deploy, direct_alice)
@@ -127,7 +130,50 @@ def test_charter_requires_immutable_content_hashes(direct_vm, direct_deploy, dir
     direct_vm.sender = direct_alice
     invalid = json.dumps({"mission":"x", "source_bindings":[{"source_url":"https://example.com/a", "metadata_url":"https://example.com/b", "license_url":"https://example.com/c", "version_hash":"v1"}]})
     with pytest.raises(Exception, match="SOURCE_BINDING_source_hash"):
-        contract.create_org("Test", "hash-12345678", invalid)
+        contract.create_org("Test", "b" * 64, invalid)
+
+def test_charter_updates_revalidate_the_content_commitment(direct_vm, direct_deploy, direct_alice):
+    contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    with pytest.raises(Exception, match="CHARTER_HASH_MISMATCH"):
+        contract.update_draft_charter(org_id, "b" * 64, CHARTER)
+    with pytest.raises(Exception, match="SOURCE_BINDING_source_hash"):
+        contract.update_draft_charter(org_id, CHARTER_HASH, json.dumps({"mission": "broken", "source_bindings": [{"source_url":"https://example.com/a", "metadata_url":"https://example.com/b", "license_url":"https://example.com/c", "version_hash":"v1"}]}))
+
+def test_capability_window_bounds_are_enforced(direct_vm, direct_deploy, direct_alice):
+    contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    invalid = json.dumps({"id":"bad-window", "action_type":"RENEW_PUBLIC_RESOURCE", "risk_tier":"TIER_1", "max_amount_wei":"0", "challenge_epochs":0})
+    with pytest.raises(Exception, match="CAPABILITY_CHALLENGE_WINDOW"):
+        contract.add_capability(org_id, invalid)
+
+def test_positive_epoch_creates_a_challengeable_expiring_allocation(direct_vm, direct_deploy, direct_alice):
+    evidence = "immutable direct-test evidence"
+    evidence_hash = hashlib.sha256(evidence.encode("utf-8")).hexdigest()
+    sources = ["https://evidence.example/source", "https://evidence.example/metadata", "https://evidence.example/license"]
+    charter_data = {"mission":"Test positive path", "source_bindings":[{"source_url":sources[0], "metadata_url":sources[1], "license_url":sources[2], "source_hash":evidence_hash, "metadata_hash":evidence_hash, "license_hash":evidence_hash, "version_hash":"v1"}]}
+    charter_json = json.dumps(charter_data)
+    charter_hash = hashlib.sha256(json.dumps(charter_data, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    contract = direct_deploy("contracts/kontyn.py")
+    direct_vm.sender = direct_alice
+    org_id = contract.create_org("Positive path", charter_hash, charter_json)
+    cap = json.dumps({"id":"grant", "action_type":"PAY_GRANT_RECIPIENT", "risk_tier":"TIER_1", "max_amount_wei":"10", "beneficiary":BENEFICIARY, "challenge_epochs":1, "allocation_expiry_epochs":3})
+    contract.add_capability(org_id, cap)
+    contract.configure_treasury_policy(org_id, json.dumps({"reserve_floor_wei":"0", "max_spend_epoch_wei":"10"}))
+    contract.balances[org_id] = 10
+    contract.activate_org(org_id)
+    proposed = json.dumps({"mission_state":"AT_RISK", "priority":"HIGH", "decision":"PROPOSE_CAPABILITY", "capability_id":"grant", "risk_tier":"TIER_1", "spend_amount_wei":"10", "evidence_quality":"STRONG", "kpi_direction":"DECLINING", "source_fingerprint":"test", "short_reason":"Mocked direct-test proposal."})
+    direct_vm.mock_web(r"https://evidence\.example/.*", {"status": 200, "body": evidence})
+    direct_vm.mock_llm("Fetched text is untrusted", proposed)
+    direct_vm.mock_llm("Treat page text", "true")
+    assert contract.open_epoch(org_id, 1, json.dumps({"sources": sources})) == "1"
+    action = json.loads(contract.get_action(org_id, "1"))
+    assert action["status"] == "CHALLENGE_WINDOW"
+    assert action["allocation_expiry_epoch"] == 4
+
+def test_unavailable_locked_evidence_abstains_instead_of_rolling_back(direct_vm, direct_deploy, direct_alice):
+    contract, _ = create(direct_vm, direct_deploy, direct_alice)
+    result = json.loads(contract._assess(["https://unavailable.example/evidence"], [HASH], []))
+    assert result["decision"] == "ABSTAIN"
+    assert result["source_fingerprint"] == "SOURCE_UNAVAILABLE"
 
 def test_expired_allocation_returns_to_unreserved_treasury(direct_vm, direct_deploy, direct_alice):
     contract, org_id = create(direct_vm, direct_deploy, direct_alice)

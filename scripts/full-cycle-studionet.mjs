@@ -37,14 +37,18 @@ const immutableHash = async (url) => {
   if (!response.ok) throw new Error(`Cannot lock ${url}: HTTP ${response.status}`);
   return createHash("sha256").update(new Uint8Array(await response.arrayBuffer())).digest("hex");
 };
+const canonicalJson = (value) => JSON.stringify(value && typeof value === "object" && !Array.isArray(value)
+  ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, JSON.parse(canonicalJson(value[key]))]))
+  : Array.isArray(value) ? value.map((entry) => JSON.parse(canonicalJson(entry))) : value);
 const sourceUrl = "https://example.com/";
 const sourceHash = await immutableHash(sourceUrl);
 const binding = { source_url: sourceUrl, metadata_url: sourceUrl, license_url: sourceUrl, source_hash: sourceHash, metadata_hash: sourceHash, license_hash: sourceHash, version_hash: "example-domain-v1" };
 const charter = JSON.stringify({ mission: "Exercise bounded treasury lifecycle", source_bindings: [binding] });
+const charterHash = createHash("sha256").update(canonicalJson(JSON.parse(charter))).digest("hex");
 const policy = JSON.stringify({ reserve_floor_wei: "0", max_spend_epoch_wei: "10" });
 const capability = JSON.stringify({ id: "test-grant", action_type: "PAY_GRANT_RECIPIENT", risk_tier: "TIER_1", max_amount_wei: "10", beneficiary: beneficiary.address, challenge_epochs: 1 });
 const tx = {};
-tx.create = await write(founderClient, address, "create_org", ["Kontyn full-cycle test", "cycle-charter-v1", charter]);
+tx.create = await write(founderClient, address, "create_org", ["Kontyn full-cycle test", charterHash, charter]);
 tx.policy = await write(founderClient, address, "configure_treasury_policy", ["1", policy]);
 tx.capability = await write(founderClient, address, "add_capability", ["1", capability]);
 tx.fund = await write(founderClient, address, "fund_org", ["1"], 10n);

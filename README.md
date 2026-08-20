@@ -6,7 +6,7 @@ The consensus question is narrow: given an organization’s mission, charter-loc
 
 ## Safety boundary
 
-- Submitted evidence manifests must exactly equal the charter’s HTTPS source allowlist. Each source, metadata document, and license document is locked by a SHA-256 content hash; a changed document causes a safe abstention rather than a spend.
+- Submitted evidence manifests must exactly equal the charter’s HTTPS source allowlist. The full canonical charter, plus each source, metadata document, and license document, are locked by SHA-256 content hashes; a changed or unavailable document causes a safe abstention rather than a spend.
 - Leader and validators independently fetch the same sources. Both prompts classify fetched content as untrusted quoted evidence, never instructions.
 - Weak, inaccessible, conflicting, malformed, or unsupported evidence must become `INCONCLUSIVE` / `ABSTAIN`.
 - An LLM cannot create an address, recipient, target, calldata, capability, or budget. It can select only a pre-recorded capability, and reserve/spend/risk checks run deterministically afterward.
@@ -23,7 +23,7 @@ npm.cmd run keeper
 npm.cmd run exercise:studionet
 ```
 
-The direct suite covers lifecycle guards, immutable evidence bindings, founder authorization, immutable value-capability beneficiaries, funding accounting, exact reservation, expiry recovery, unfunded allocation rejection, and rejected/cancelled recovery. The live suite runs the same StudioNet full-cycle script when disposable test keys are explicitly supplied.
+The direct suite covers lifecycle guards, canonical charter commitments, immutable evidence bindings, founder authorization, immutable value-capability beneficiaries, funding accounting, exact reservation, expiry recovery, unfunded allocation rejection, rejected/cancelled recovery, and a mocked consensus proposal through action creation with its challenge and expiry windows. The live suite runs the same StudioNet full-cycle script when disposable test keys are explicitly supplied.
 
 Copy `.env.example` to `.env.local`, deploy first, then set `NEXT_PUBLIC_KONTYN_CONTRACT_ADDRESS`. `scripts/verify-schema.mjs` checks the deployed schema against client call sites. The permissionless keeper is idempotent and opens due epochs only; it never supplies a verdict.
 
@@ -39,4 +39,4 @@ Studio’s 30 RPM limit cannot be increased by an app. Kontyn keeps foreground t
 
 ## Honest current limits
 
-Studio can return `UNDETERMINED`; no state changes in that branch and the caller must retry. The source hashes intentionally make mutable web pages fail closed, so organizations should use stable, versioned documents or update their charter while it is still in `DRAFT`. The live proof above intentionally uses placeholder evidence and therefore cannot create a payment. Withdrawal, allocation-expiry recovery, and counter-evidence input validation are covered in the direct suite; before any material real treasury is funded, run a separate live scenario using genuine, hash-bound source evidence that justifies a bounded capability and exercise its challenge and withdrawal path.
+Studio can return `UNDETERMINED`; no state changes in that branch and the caller must retry. The source hashes intentionally make mutable web pages fail closed, so organizations should use stable, versioned documents or update their charter while it is still in `DRAFT`. The live proof above intentionally uses placeholder evidence and therefore cannot create a payment. Withdrawal, allocation-expiry recovery, counter-evidence input validation, and successful action construction are covered in the direct suite; before any material real treasury is funded, run a separate live scenario using genuine, hash-bound source evidence that justifies a bounded capability and exercise its challenge and withdrawal path.
