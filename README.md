@@ -29,9 +29,21 @@ Copy `.env.example` to `.env.local`, deploy first, then set `NEXT_PUBLIC_KONTYN_
 
 ## Studionet verification
 
-Current StudioNet contract: [`0x9F5602653B6ADf0D361d9D9A76108C6ea1ad76fF`](https://explorer-studio.genlayer.com/address/0x9F5602653B6ADf0D361d9D9A76108C6ea1ad76fF).
+Current StudioNet contract: [`0x7E7A09DF5C75cDd94fBFe6527fCE3F15AB50A2d6`](https://explorer-studio.genlayer.com/address/0x7E7A09DF5C75cDd94fBFe6527fCE3F15AB50A2d6).
 
-The finalized disposable-wallet run deployed this exact revision, created the organization and policy, added the immutable-beneficiary capability, funded 10 wei, recovered the unallocated value, re-funded 10 wei, and submitted an epoch. The epoch transaction [`0x35cb…f8ed`](https://explorer-studio.genlayer.com/tx/0x35cb1299525dcb67814881410817cbcd6f21ab8e63d4a33233ac47854e2af8ed) stored an accepted `INCONCLUSIVE` / `ABSTAIN` decision with zero spend; treasury remained 10 available / 0 reserved. This is the correct fail-closed result for the hash-bound IANA placeholder evidence used by the test.
+Final verified commit: `cfb931a`. Deployment transaction: [`0xe364…e1ca`](https://explorer-studio.genlayer.com/tx/0xe36453b55ada763be0fb9f5369163ae12d4002f3e1b8c16291b5c391603be1ca).
+
+The finalized disposable-wallet run deployed the final revision, created the organization and policy, added an immutable-beneficiary capability, funded 10 wei, proved unallocated treasury recovery, re-funded 10 wei, ran the positive consensus epoch, advanced the challenge window, finalized it, reserved the allocation, and withdrew to the immutable beneficiary.
+
+Positive lifecycle proof:
+
+- Epoch 1 consensus: [`0x8d67…a9af`](https://explorer-studio.genlayer.com/tx/0x8d678e8de5542e42eaa56f5d95897cdded0913269c8b511ea188f293b1e5a9af) accepted `PROPOSE_CAPABILITY` for capability `test-grant`, amount `10`.
+- Epoch 2 challenge-window advance: [`0x189c…1301`](https://explorer-studio.genlayer.com/tx/0x189ce9a49de0c3c24880bf24369356ce1fde0377bf8d43b4d4696ac36f791301).
+- Finalize challenge window: [`0x8c53…6687`](https://explorer-studio.genlayer.com/tx/0x8c53221a48f1adfe7356cecbe42d675df6f5a9c0beddd1aac0a3f64a78436687).
+- Reserve allocation: [`0x9179…d782`](https://explorer-studio.genlayer.com/tx/0x9179fc92c318bcef761d715d71537067584533932314ce04c7dcd5bb4cb9d782).
+- Withdraw allocation: [`0x6c6c…d94a`](https://explorer-studio.genlayer.com/tx/0x6c6c7944fa682b511503252eb0bc9a9d6b663879f5d067b8173473eab1bad94a).
+
+Final verified action status was `WITHDRAWN`; final treasury was `0` total, `0` reserved, and `0` available. `npm run verify:schema` passed against this contract address.
 
 ## Studio limit
 
@@ -39,4 +51,4 @@ Studio’s 30 RPM limit cannot be increased by an app. Kontyn keeps foreground t
 
 ## Honest current limits
 
-Studio can return `UNDETERMINED`; no state changes in that branch and the caller must retry. The source hashes intentionally make mutable web pages fail closed, so organizations should use stable, versioned documents or update their charter while it is still in `DRAFT`. The live proof above intentionally uses placeholder evidence and therefore cannot create a payment. Withdrawal, allocation-expiry recovery, counter-evidence input validation, and successful action construction are covered in the direct suite; before any material real treasury is funded, run a separate live scenario using genuine, hash-bound source evidence that justifies a bounded capability and exercise its challenge and withdrawal path.
+Studio can return `UNDETERMINED`; no state changes in that branch and the caller must retry. The source hashes intentionally make mutable web pages fail closed, so organizations should use stable, versioned documents or update their charter while it is still in `DRAFT`. The live proof above uses a hash-bound factual fixture for the positive payout path; before any material real treasury is funded, run the same lifecycle with the real organization evidence and keep the source, metadata, license, and version hashes immutable.
