@@ -6,11 +6,11 @@ The consensus question is narrow: given an organization’s mission, charter-loc
 
 ## Safety boundary
 
-- Submitted evidence manifests must exactly equal the charter’s HTTPS source allowlist.
+- Submitted evidence manifests must exactly equal the charter’s HTTPS source allowlist. Each source, metadata document, and license document is locked by a SHA-256 content hash; a changed document causes a safe abstention rather than a spend.
 - Leader and validators independently fetch the same sources. Both prompts classify fetched content as untrusted quoted evidence, never instructions.
 - Weak, inaccessible, conflicting, malformed, or unsupported evidence must become `INCONCLUSIVE` / `ABSTAIN`.
 - An LLM cannot create an address, recipient, target, calldata, capability, or budget. It can select only a pre-recorded capability, and reserve/spend/risk checks run deterministically afterward.
-- Tier 2 actions need ratification. A value-moving capability must permanently bind a beneficiary address before activation. Finalized actions reserve GEN; only that beneficiary can withdraw its allocation. The founder can recover only non-reserved GEN while the reserve floor remains intact. Rejected, cancelled, and undetermined actions reserve nothing.
+- Tier 2 actions need ratification. Every GEN-moving action then enters a permissionless challenge window. Counter-evidence is hash-bound and is resolved by a fresh GenLayer consensus review, never a founder decision. A value-moving capability permanently binds its beneficiary before activation. Finalized actions reserve GEN; only that beneficiary can withdraw, while an unclaimed allocation returns to unreserved treasury after its declared epoch expiry. The founder can recover only non-reserved GEN while the reserve floor remains intact. Rejected, cancelled, and undetermined actions reserve nothing.
 
 ## Commands
 
@@ -23,15 +23,15 @@ npm.cmd run keeper
 npm.cmd run exercise:studionet
 ```
 
-The direct suite currently covers 11 lifecycle checks: organization state guards, founder authorization, immutable value-capability beneficiaries, funding accounting, exact reservation, unfunded allocation rejection, and rejected/cancelled recovery.
+The direct suite covers lifecycle guards, immutable evidence bindings, founder authorization, immutable value-capability beneficiaries, funding accounting, exact reservation, expiry recovery, unfunded allocation rejection, and rejected/cancelled recovery. The live suite runs the same StudioNet full-cycle script when disposable test keys are explicitly supplied.
 
 Copy `.env.example` to `.env.local`, deploy first, then set `NEXT_PUBLIC_KONTYN_CONTRACT_ADDRESS`. `scripts/verify-schema.mjs` checks the deployed schema against client call sites. The permissionless keeper is idempotent and opens due epochs only; it never supplies a verdict.
 
 ## Studionet verification
 
-Current verified contract: [`0x065514D5748915e47c89547E9695C1F375091084`](https://explorer-studio.genlayer.com/address/0x065514D5748915e47c89547E9695C1F375091084).
+Current StudioNet contract: [`0x9F5602653B6ADf0D361d9D9A76108C6ea1ad76fF`](https://explorer-studio.genlayer.com/address/0x9F5602653B6ADf0D361d9D9A76108C6ea1ad76fF).
 
-The disposable-wallet lifecycle exercised charter creation, policy configuration, an immutable-beneficiary capability, 10 wei funding, activation, unallocated treasury recovery, re-funding, and a real permissionless epoch submission. The epoch returned no accepted decision, so it created no allocation and reserved no funds; the observable treasury state remained 10 available / 0 reserved. This is the correct safe outcome when consensus does not produce a usable result.
+The finalized disposable-wallet run deployed this exact revision, created the organization and policy, added the immutable-beneficiary capability, funded 10 wei, recovered the unallocated value, re-funded 10 wei, and submitted an epoch. The epoch transaction [`0x35cb…f8ed`](https://explorer-studio.genlayer.com/tx/0x35cb1299525dcb67814881410817cbcd6f21ab8e63d4a33233ac47854e2af8ed) stored an accepted `INCONCLUSIVE` / `ABSTAIN` decision with zero spend; treasury remained 10 available / 0 reserved. This is the correct fail-closed result for the hash-bound IANA placeholder evidence used by the test.
 
 ## Studio limit
 
@@ -39,4 +39,4 @@ Studio’s 30 RPM limit cannot be increased by an app. Kontyn keeps foreground t
 
 ## Honest current limits
 
-No Studionet deployment or integration run is recorded because no deploy account/address was supplied. Studio can return `UNDETERMINED`; no state changes in that branch and the user must retry. The newly added external-transfer branches require a real Studionet lifecycle exercise before users should fund a deployed instance.
+Studio can return `UNDETERMINED`; no state changes in that branch and the caller must retry. The source hashes intentionally make mutable web pages fail closed, so organizations should use stable, versioned documents or update their charter while it is still in `DRAFT`. The live proof above intentionally uses placeholder evidence and therefore cannot create a payment. Withdrawal, allocation-expiry recovery, and counter-evidence input validation are covered in the direct suite; before any material real treasury is funded, run a separate live scenario using genuine, hash-bound source evidence that justifies a bounded capability and exercise its challenge and withdrawal path.

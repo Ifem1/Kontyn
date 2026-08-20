@@ -1,7 +1,8 @@
 import json
 import pytest
 
-CHARTER = json.dumps({"mission": "Keep a public resource available", "source_bindings": [{"source_url":"https://example.com/mission-status", "metadata_url":"https://example.com/mission-status", "license_url":"https://example.com/license", "version_hash":"source-v1-hash"}]})
+HASH = "a" * 64
+CHARTER = json.dumps({"mission": "Keep a public resource available", "source_bindings": [{"source_url":"https://example.com/mission-status", "metadata_url":"https://example.com/mission-status", "license_url":"https://example.com/license", "source_hash":HASH, "metadata_hash":HASH, "license_hash":HASH, "version_hash":"source-v1-hash"}]})
 BENEFICIARY = "0x1111111111111111111111111111111111111111"
 CAPABILITY = json.dumps({"id": "renew", "action_type": "RENEW_PUBLIC_RESOURCE", "risk_tier": "TIER_1", "max_amount_wei": "0"})
 PAY_CAPABILITY = json.dumps({"id": "grant", "action_type": "PAY_GRANT_RECIPIENT", "risk_tier": "TIER_1", "max_amount_wei": "100", "beneficiary": BENEFICIARY})
@@ -120,3 +121,38 @@ def test_normalization_never_grants_proposal_authority(direct_vm, direct_deploy,
         "short_reason": "Unsupported proposal.",
     })
     assert not contract._valid_decision(decision, [])
+
+def test_charter_requires_immutable_content_hashes(direct_vm, direct_deploy, direct_alice):
+    contract = direct_deploy("contracts/kontyn.py")
+    direct_vm.sender = direct_alice
+    invalid = json.dumps({"mission":"x", "source_bindings":[{"source_url":"https://example.com/a", "metadata_url":"https://example.com/b", "license_url":"https://example.com/c", "version_hash":"v1"}]})
+    with pytest.raises(Exception, match="SOURCE_BINDING_source_hash"):
+        contract.create_org("Test", "hash-12345678", invalid)
+
+def test_expired_allocation_returns_to_unreserved_treasury(direct_vm, direct_deploy, direct_alice):
+    contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    contract.balances[org_id] = 25
+    contract.reserved[org_id] = 10
+    contract.actions[org_id + ":1"] = json.dumps({"id":"1", "capability_id":"grant", "amount_wei":"10", "beneficiary":BENEFICIARY, "status":"ALLOCATED", "allocation_expiry_epoch":2})
+    org = json.loads(contract.get_org(org_id)); org["last_epoch"] = 2; contract._save_org(org_id, org)
+    contract.recover_expired_allocation(org_id, "1")
+    assert json.loads(contract.get_treasury_state(org_id)) == {"available_wei":"25", "reserved_wei":"0", "total_wei":"25"}
+    assert json.loads(contract.get_action(org_id, "1"))["status"] == "EXPIRED_RECOVERED"
+
+def test_counter_evidence_requires_content_hash(direct_vm, direct_deploy, direct_alice, direct_bob):
+    contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    contract.actions[org_id + ":1"] = json.dumps({"id":"1", "status":"CHALLENGE_WINDOW"})
+    direct_vm.sender = direct_bob
+    with pytest.raises(Exception, match="COUNTER_EVIDENCE_INVALID"):
+        contract.submit_counter_evidence(org_id, "1", "https://example.com/mission-status", "https://example.com/counter", "not-a-sha256")
+
+def test_immutable_beneficiary_can_withdraw_allocated_value(direct_vm, direct_deploy, direct_alice, direct_bob):
+    contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    beneficiary = "0x" + bytes(direct_bob).hex()
+    contract.balances[org_id] = 25
+    contract.reserved[org_id] = 10
+    contract.actions[org_id + ":1"] = json.dumps({"id":"1", "amount_wei":"10", "beneficiary":beneficiary, "status":"ALLOCATED", "allocation_expiry_epoch":12})
+    direct_vm.sender = direct_bob
+    contract.withdraw_allocation(org_id, "1")
+    assert json.loads(contract.get_treasury_state(org_id)) == {"available_wei":"15", "reserved_wei":"0", "total_wei":"15"}
+    assert json.loads(contract.get_action(org_id, "1"))["status"] == "WITHDRAWN"

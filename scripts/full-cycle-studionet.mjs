@@ -2,6 +2,7 @@
  * Keys are read only from the process environment and are never logged or written.
  */
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { createAccount, createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 import { TransactionStatus } from "genlayer-js/types";
@@ -31,7 +32,14 @@ const write = async (client, address, functionName, args, value = 0n) => {
 const deployHash = await founderClient.deployContract({ code: new Uint8Array(readFileSync("contracts/kontyn.py")), args: [], value: 0n });
 const deployReceipt = await wait(founderClient, deployHash); assertSuccessful(deployReceipt, deployHash); const address = deployReceipt.data?.contract_address;
 if (!address) throw new Error("Deployment did not return an address.");
-const binding = { source_url: "https://example.com/", metadata_url: "https://example.com/", license_url: "https://example.com/", version_hash: "example-domain-v1" };
+const immutableHash = async (url) => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Cannot lock ${url}: HTTP ${response.status}`);
+  return createHash("sha256").update(new Uint8Array(await response.arrayBuffer())).digest("hex");
+};
+const sourceUrl = "https://example.com/";
+const sourceHash = await immutableHash(sourceUrl);
+const binding = { source_url: sourceUrl, metadata_url: sourceUrl, license_url: sourceUrl, source_hash: sourceHash, metadata_hash: sourceHash, license_hash: sourceHash, version_hash: "example-domain-v1" };
 const charter = JSON.stringify({ mission: "Exercise bounded treasury lifecycle", source_bindings: [binding] });
 const policy = JSON.stringify({ reserve_floor_wei: "0", max_spend_epoch_wei: "10" });
 const capability = JSON.stringify({ id: "test-grant", action_type: "PAY_GRANT_RECIPIENT", risk_tier: "TIER_1", max_amount_wei: "10", beneficiary: beneficiary.address, challenge_epochs: 1 });
@@ -50,5 +58,6 @@ try {
   const hash = await write(challengerClient, address, "open_epoch", ["1", 1, JSON.stringify({ sources: [binding.source_url, binding.metadata_url, binding.license_url] })]);
   epoch = { submitted: true, hash, value: await founderClient.readContract({ address, functionName: "get_epoch", args: ["1", 1] }) };
 } catch (error) { epoch = { submitted: false, error: error instanceof Error ? error.message : String(error) }; }
+if (!epoch.submitted || !epoch.value) throw new Error(`Epoch was not accepted: ${epoch.error ?? "empty stored epoch"}`);
 const beneficiaryTreasuryRead = await beneficiaryClient.readContract({ address, functionName: "get_treasury_state", args: ["1"] });
 console.log(JSON.stringify({ contract_address: address, founder: founder.address, beneficiary: beneficiary.address, challenger: challenger.address, tx, treasury: beneficiaryTreasuryRead, epoch }, null, 2));
