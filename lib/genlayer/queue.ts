@@ -6,20 +6,20 @@
  * Studio's global limit, but prevents Kontyn itself from creating request bursts.
  */
 type Priority = "user" | "recovery" | "keeper" | "read";
-type Job<T> = { key: string; priority: number; run: () => Promise<T>; resolve: (value: T) => void; reject: (error: unknown) => void };
+type Job = { key: string; priority: number; run: () => Promise<unknown>; resolve: (value: unknown) => void; reject: (error: unknown) => void };
 const STORAGE_KEY = "kontyn.pending-tx.v1";
 const priority: Record<Priority, number> = { user: 0, recovery: 1, keeper: 2, read: 3 };
 
 export class StudioQueue {
   private timestamps: number[] = [];
   private active = false;
-  private jobs: Job<unknown>[] = [];
+  private jobs: Job[] = [];
   private inflight = new Map<string, Promise<unknown>>();
   private readonly budget = Number(process.env.NEXT_PUBLIC_STUDIO_RPM ?? 18);
 
   enqueue<T>(key: string, kind: Priority, run: () => Promise<T>): Promise<T> {
     const prior = this.inflight.get(key); if (prior) return prior as Promise<T>;
-    const task = new Promise<T>((resolve, reject) => { this.jobs.push({ key, priority: priority[kind], run, resolve, reject }); this.jobs.sort((a, b) => a.priority - b.priority); void this.drain(); });
+    const task = new Promise<T>((resolve, reject) => { this.jobs.push({ key, priority: priority[kind], run, resolve: resolve as (value: unknown) => void, reject }); this.jobs.sort((a, b) => a.priority - b.priority); void this.drain(); });
     this.inflight.set(key, task); void task.finally(() => this.inflight.delete(key)); return task;
   }
 

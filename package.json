@@ -6,9 +6,9 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "vinext dev",
-    "build": "vinext build",
-    "start": "vinext start",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
@@ -20,6 +20,7 @@
   "dependencies": {
     "drizzle-orm": "0.45.2",
     "genlayer-js": "^1.1.8",
+    "next": "16.2.6",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "react-loading-skeleton": "3.5.0",

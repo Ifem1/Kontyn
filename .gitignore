@@ -20,6 +20,7 @@ __pycache__/
 /.next/
 /.vinext/
 /out/
+*.tsbuildinfo
 
 # misc
 .DS_Store
