@@ -110,6 +110,8 @@ def test_safe_abstention_aliases_are_canonicalized(direct_vm, direct_deploy, dir
     decision = contract._normalize_decision(raw)
     assert decision["evidence_quality"] == "WEAK"
     assert decision["kpi_direction"] == "UNKNOWN"
+    assert decision["mission_state"] == "INCONCLUSIVE"
+    assert decision["priority"] == "LOW"
     assert decision["risk_tier"] == "TIER_0"
     assert decision["capability_id"] == ""
     assert decision["spend_amount_wei"] == "0"

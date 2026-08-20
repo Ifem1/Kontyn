@@ -113,6 +113,13 @@ class KontynProtocol(gl.Contract):
         if isinstance(decision.get("spend_amount_wei"), int) and decision["spend_amount_wei"] >= 0: decision["spend_amount_wei"] = str(decision["spend_amount_wei"])
         # An abstention cannot select authority, spend funds, or carry an unknown tier.
         if decision.get("decision") == "ABSTAIN":
+            # Providers frequently omit ancillary fields for an abstention. These
+            # fields are display-only once no capability or value can be selected,
+            # so canonicalize them to one deterministic zero-authority outcome.
+            decision["evidence_quality"] = "WEAK"
+            decision["kpi_direction"] = "UNKNOWN"
+            decision["mission_state"] = "INCONCLUSIVE"
+            decision["priority"] = "LOW"
             decision["capability_id"] = ""
             decision["spend_amount_wei"] = "0"
             # The risk label has no financial meaning for an abstention, so map
@@ -178,7 +185,7 @@ class KontynProtocol(gl.Contract):
             if decision.get("kpi_direction") == "NEUTRAL": decision["kpi_direction"] = "UNKNOWN"
             if isinstance(decision.get("spend_amount_wei"), int) and decision["spend_amount_wei"] >= 0: decision["spend_amount_wei"] = str(decision["spend_amount_wei"])
             if decision.get("decision") == "ABSTAIN":
-                decision["capability_id"] = ""; decision["spend_amount_wei"] = "0"; decision["risk_tier"] = "TIER_0"
+                decision["evidence_quality"] = "WEAK"; decision["kpi_direction"] = "UNKNOWN"; decision["mission_state"] = "INCONCLUSIVE"; decision["priority"] = "LOW"; decision["capability_id"] = ""; decision["spend_amount_wei"] = "0"; decision["risk_tier"] = "TIER_0"
             return decision
         def valid_for_validator(decision: typing.Any) -> bool:
             if not isinstance(decision, dict): return False

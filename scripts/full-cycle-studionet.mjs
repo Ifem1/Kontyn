@@ -29,8 +29,13 @@ const write = async (client, address, functionName, args, value = 0n) => {
   return hash;
 };
 
-const deployHash = await founderClient.deployContract({ code: new Uint8Array(readFileSync("contracts/kontyn.py")), args: [], value: 0n });
-const deployReceipt = await wait(founderClient, deployHash); assertSuccessful(deployReceipt, deployHash); const address = deployReceipt.data?.contract_address;
+const existingAddress = process.env.KONTYN_TEST_CONTRACT_ADDRESS;
+let address = existingAddress;
+let deployHash = "";
+if (!address) {
+  deployHash = await founderClient.deployContract({ code: new Uint8Array(readFileSync("contracts/kontyn.py")), args: [], value: 0n });
+  const deployReceipt = await wait(founderClient, deployHash); assertSuccessful(deployReceipt, deployHash); address = deployReceipt.data?.contract_address;
+}
 if (!address) throw new Error("Deployment did not return an address.");
 const immutableHash = async (url) => {
   const response = await fetch(url);
@@ -72,4 +77,4 @@ tx.withdraw = await write(beneficiaryClient, address, "withdraw_allocation", ["1
 const beneficiaryTreasuryRead = await beneficiaryClient.readContract({ address, functionName: "get_treasury_state", args: ["1"] });
 const action = await beneficiaryClient.readContract({ address, functionName: "get_action", args: ["1", firstEpoch.action_id] });
 if (JSON.parse(action).status !== "WITHDRAWN") throw new Error(`Allocation was not withdrawn: ${action}`);
-console.log(JSON.stringify({ contract_address: address, founder: founder.address, beneficiary: beneficiary.address, challenger: challenger.address, tx, treasury: beneficiaryTreasuryRead, epoch, action }, null, 2));
+console.log(JSON.stringify({ contract_address: address, deploy_hash: deployHash, founder: founder.address, beneficiary: beneficiary.address, challenger: challenger.address, tx, treasury: beneficiaryTreasuryRead, epoch, action }, null, 2));
