@@ -1,7 +1,7 @@
 /** Continue one explicit StudioNet lifecycle step without storing any key. */
 import { createAccount, createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
-import { TransactionStatus } from "genlayer-js/types";
+import { ExecutionResult, TransactionStatus } from "genlayer-js/types";
 
 const key = process.env.KONTYN_LIFECYCLE_TEST_KEY;
 const step = process.env.KONTYN_LIFECYCLE_STEP;
@@ -23,7 +23,14 @@ const calls = {
 };
 const call = calls[step];
 if (!call) throw new Error("Unknown lifecycle step.");
+const assertSuccessful = (receipt, hash) => {
+  const consensus = receipt.resultName ?? receipt.result_name;
+  const execution = receipt.txExecutionResultName ?? receipt.tx_execution_result_name;
+  if (consensus !== "MAJORITY_AGREE" || (execution && execution !== ExecutionResult.FINISHED_WITH_RETURN)) {
+    throw new Error(`Transaction ${hash} did not execute successfully: consensus=${consensus ?? "unknown"}, execution=${execution ?? "unknown"}`);
+  }
+};
 const hash = await client.writeContract({ address, functionName: call[0], args: call[1] });
-const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, interval: 20000, retries: 30 });
-console.log(JSON.stringify({ step, hash, status: receipt.statusName, result: receipt.resultName }));
-if (receipt.resultName && receipt.resultName !== "MAJORITY_AGREE") process.exitCode = 1;
+const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, interval: 20000, retries: 30, fullTransaction: true });
+assertSuccessful(receipt, hash);
+console.log(JSON.stringify({ step, hash, status: receipt.statusName, result: receipt.resultName ?? receipt.result_name, execution: receipt.txExecutionResultName ?? receipt.tx_execution_result_name ?? null }));

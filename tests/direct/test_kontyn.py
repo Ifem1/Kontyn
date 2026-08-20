@@ -143,6 +143,40 @@ def test_normalization_accepts_harmless_positive_provider_aliases(direct_vm, dir
     assert len(decision["short_reason"]) == 280
     assert contract._valid_decision(decision, contract._capability_id_snapshot(org_id))
 
+def test_normalization_accepts_live_studionet_positive_aliases(direct_vm, direct_deploy, direct_alice):
+    contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    contract.add_capability(org_id, PAY_CAPABILITY)
+    decision = contract._normalize_decision({
+        "decision": "APPROVE", "evidence_quality": "high",
+        "kpi_direction": "positive", "mission_state": "ACTIVE",
+        "priority": "normal", "risk_tier": "TIER_1",
+        "capability_id": "grant", "spend_amount_wei": "10",
+        "source_fingerprint": "abc", "short_reason": "Live StudioNet provider wording.",
+    })
+    assert decision["decision"] == "PROPOSE_CAPABILITY"
+    assert decision["mission_state"] == "ON_TRACK"
+    assert decision["evidence_quality"] == "STRONG"
+    assert decision["kpi_direction"] == "IMPROVING"
+    assert contract._valid_decision(decision, contract._capability_id_snapshot(org_id))
+
+def test_epoch_context_binds_mission_capability_budget_and_sources(direct_vm, direct_deploy, direct_alice):
+    contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    contract.add_capability(org_id, PAY_CAPABILITY)
+    contract.configure_treasury_policy(org_id, json.dumps({"reserve_floor_wei":"3", "max_spend_epoch_wei":"100"}))
+    contract.balances[org_id] = 25
+    org = json.loads(contract.get_org(org_id))
+    charter = json.loads(contract.get_charter(org_id))
+    policy = json.loads(contract.get_treasury_policy(org_id))
+    cap = json.loads(contract.get_capability(org_id, "grant"))
+    context = json.loads(contract._epoch_context(org_id, org, 1, charter, policy, [cap]))
+    assert context["mission"] == CHARTER_DATA["mission"]
+    assert context["charter_hash"] == CHARTER_HASH
+    assert context["treasury_policy"]["reserve_floor_wei"] == "3"
+    assert context["available_unreserved_wei"] == "25"
+    assert context["capabilities"][0]["id"] == "grant"
+    assert context["capabilities"][0]["beneficiary"] == BENEFICIARY.lower()
+    assert context["source_bindings"][0]["version_hash"] == HASH
+
 def test_charter_requires_immutable_content_hashes(direct_vm, direct_deploy, direct_alice):
     contract = direct_deploy("contracts/kontyn.py")
     direct_vm.sender = direct_alice

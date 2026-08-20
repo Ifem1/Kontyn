@@ -25,6 +25,7 @@ const assertSuccessful = (receipt, hash) => {
 };
 const write = async (client, address, functionName, args, value = 0n) => {
   const hash = await client.writeContract({ address, functionName, args, value });
+  console.error(JSON.stringify({ stage: functionName, hash, contract_address: address }));
   assertSuccessful(await wait(client, hash), hash);
   return hash;
 };
@@ -35,6 +36,7 @@ let deployHash = "";
 if (!address) {
   deployHash = await founderClient.deployContract({ code: new Uint8Array(readFileSync("contracts/kontyn.py")), args: [], value: 0n });
   const deployReceipt = await wait(founderClient, deployHash); assertSuccessful(deployReceipt, deployHash); address = deployReceipt.data?.contract_address;
+  console.error(JSON.stringify({ stage: "deploy", hash: deployHash, contract_address: address }));
 }
 if (!address) throw new Error("Deployment did not return an address.");
 const immutableHash = async (url) => {
