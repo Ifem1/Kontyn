@@ -108,9 +108,24 @@ class KontynProtocol(gl.Contract):
         """Canonicalize only harmless LLM aliases; never invent an action or amount."""
         if not isinstance(raw, dict): return raw
         decision = dict(raw)
+        aliases = {
+            "mission_state": {"ON TRACK": "ON_TRACK", "ON-TRACK": "ON_TRACK", "AT RISK": "AT_RISK", "OFF TRACK": "OFF_TRACK", "UNCERTAIN": "INCONCLUSIVE", "UNKNOWN": "INCONCLUSIVE"},
+            "priority": {"MEDIUM": "NORMAL", "CRITICAL": "URGENT", "NONE": "LOW"},
+            "decision": {"PROPOSE": "PROPOSE_CAPABILITY", "PROPOSE_ACTION": "PROPOSE_CAPABILITY", "PROPOSE ACTION": "PROPOSE_CAPABILITY", "NO_ACTION": "ABSTAIN", "NO ACTION": "ABSTAIN", "NONE": "ABSTAIN"},
+            "evidence_quality": {"INSUFFICIENT": "WEAK", "LOW": "WEAK", "MEDIUM": "MODERATE", "HIGH": "STRONG"},
+            "kpi_direction": {"NEUTRAL": "UNKNOWN", "POSITIVE": "IMPROVING", "NEGATIVE": "DECLINING", "NO_CHANGE": "STABLE"},
+            "risk_tier": {"TIER 0": "TIER_0", "TIER 1": "TIER_1", "TIER 2": "TIER_2", "TIER0": "TIER_0", "TIER1": "TIER_1", "TIER2": "TIER_2"},
+        }
+        for field, mapping in aliases.items():
+            value = decision.get(field)
+            if isinstance(value, str): decision[field] = mapping.get(value.strip().upper(), value.strip().upper())
         if decision.get("evidence_quality") == "INSUFFICIENT": decision["evidence_quality"] = "WEAK"
         if decision.get("kpi_direction") == "NEUTRAL": decision["kpi_direction"] = "UNKNOWN"
         if isinstance(decision.get("spend_amount_wei"), int) and decision["spend_amount_wei"] >= 0: decision["spend_amount_wei"] = str(decision["spend_amount_wei"])
+        if isinstance(decision.get("spend_amount_wei"), str):
+            match = re.fullmatch(r"\s*(\d+)\s*(?:wei)?\s*", decision["spend_amount_wei"], re.IGNORECASE)
+            if match: decision["spend_amount_wei"] = match.group(1)
+        if isinstance(decision.get("short_reason"), str): decision["short_reason"] = decision["short_reason"][:MAX_REASON]
         # An abstention cannot select authority, spend funds, or carry an unknown tier.
         if decision.get("decision") == "ABSTAIN":
             # Providers frequently omit ancillary fields for an abstention. These
@@ -181,9 +196,24 @@ class KontynProtocol(gl.Contract):
         def normalize_for_validator(raw: typing.Any) -> typing.Any:
             if not isinstance(raw, dict): return raw
             decision = dict(raw)
+            aliases = {
+                "mission_state": {"ON TRACK": "ON_TRACK", "ON-TRACK": "ON_TRACK", "AT RISK": "AT_RISK", "OFF TRACK": "OFF_TRACK", "UNCERTAIN": "INCONCLUSIVE", "UNKNOWN": "INCONCLUSIVE"},
+                "priority": {"MEDIUM": "NORMAL", "CRITICAL": "URGENT", "NONE": "LOW"},
+                "decision": {"PROPOSE": "PROPOSE_CAPABILITY", "PROPOSE_ACTION": "PROPOSE_CAPABILITY", "PROPOSE ACTION": "PROPOSE_CAPABILITY", "NO_ACTION": "ABSTAIN", "NO ACTION": "ABSTAIN", "NONE": "ABSTAIN"},
+                "evidence_quality": {"INSUFFICIENT": "WEAK", "LOW": "WEAK", "MEDIUM": "MODERATE", "HIGH": "STRONG"},
+                "kpi_direction": {"NEUTRAL": "UNKNOWN", "POSITIVE": "IMPROVING", "NEGATIVE": "DECLINING", "NO_CHANGE": "STABLE"},
+                "risk_tier": {"TIER 0": "TIER_0", "TIER 1": "TIER_1", "TIER 2": "TIER_2", "TIER0": "TIER_0", "TIER1": "TIER_1", "TIER2": "TIER_2"},
+            }
+            for field, mapping in aliases.items():
+                value = decision.get(field)
+                if isinstance(value, str): decision[field] = mapping.get(value.strip().upper(), value.strip().upper())
             if decision.get("evidence_quality") == "INSUFFICIENT": decision["evidence_quality"] = "WEAK"
             if decision.get("kpi_direction") == "NEUTRAL": decision["kpi_direction"] = "UNKNOWN"
             if isinstance(decision.get("spend_amount_wei"), int) and decision["spend_amount_wei"] >= 0: decision["spend_amount_wei"] = str(decision["spend_amount_wei"])
+            if isinstance(decision.get("spend_amount_wei"), str):
+                match = re.fullmatch(r"\s*(\d+)\s*(?:wei)?\s*", decision["spend_amount_wei"], re.IGNORECASE)
+                if match: decision["spend_amount_wei"] = match.group(1)
+            if isinstance(decision.get("short_reason"), str): decision["short_reason"] = decision["short_reason"][:MAX_REASON]
             if decision.get("decision") == "ABSTAIN":
                 decision["evidence_quality"] = "WEAK"; decision["kpi_direction"] = "UNKNOWN"; decision["mission_state"] = "INCONCLUSIVE"; decision["priority"] = "LOW"; decision["capability_id"] = ""; decision["spend_amount_wei"] = "0"; decision["risk_tier"] = "TIER_0"
             return decision

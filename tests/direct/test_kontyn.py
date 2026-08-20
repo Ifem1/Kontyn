@@ -127,6 +127,22 @@ def test_normalization_never_grants_proposal_authority(direct_vm, direct_deploy,
     })
     assert not contract._valid_decision(decision, [])
 
+def test_normalization_accepts_harmless_positive_provider_aliases(direct_vm, direct_deploy, direct_alice):
+    contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    contract.add_capability(org_id, PAY_CAPABILITY)
+    decision = contract._normalize_decision({
+        "decision": "propose action", "evidence_quality": "high",
+        "kpi_direction": "positive", "mission_state": "on track", "priority": "medium",
+        "risk_tier": "tier 1", "capability_id": "grant", "spend_amount_wei": "10 wei",
+        "short_reason": "x" * 300,
+    })
+    assert decision["decision"] == "PROPOSE_CAPABILITY"
+    assert decision["priority"] == "NORMAL"
+    assert decision["risk_tier"] == "TIER_1"
+    assert decision["spend_amount_wei"] == "10"
+    assert len(decision["short_reason"]) == 280
+    assert contract._valid_decision(decision, contract._capability_id_snapshot(org_id))
+
 def test_charter_requires_immutable_content_hashes(direct_vm, direct_deploy, direct_alice):
     contract = direct_deploy("contracts/kontyn.py")
     direct_vm.sender = direct_alice
