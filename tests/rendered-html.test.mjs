@@ -3,13 +3,20 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("defines the Kontyn operational dashboard information architecture", async () => {
-  const [page, shell, css] = await Promise.all([
+  const [page, home, shell, css] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/kontyn/HomeLanding.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/kontyn/KontynShell.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /export const metadata:\s*Metadata/);
+  assert.match(page, /<HomeLanding \/>/);
+  assert.doesNotMatch(page, /<KontynApp \/>/);
+  assert.match(home, /Mission.*Evidence.*GenLayer Consensus.*Bounded Capability.*Challenge.*Settlement/s);
+  assert.match(home, /No wallet is required/);
+  assert.match(home, /Explore Kontyn/);
+  assert.match(home, /StudioNet explorer/);
   for (const section of ["Mission", "Charter", "Objectives", "Capabilities", "Treasury", "Epochs", "Governance", "Constitution", "Keeper", "Audit"]) {
     assert.match(shell, new RegExp(section));
   }
@@ -17,8 +24,11 @@ test("defines the Kontyn operational dashboard information architecture", async 
     assert.match(shell, new RegExp(`function ${view}`));
   }
   assert.match(shell, /Load state/);
-  assert.match(shell, /Not loaded/);
+  assert.match(shell, /Enter an organization ID and load its live StudioNet state/);
+  assert.match(shell, /Select an organization/);
   assert.match(css, /\.selector-strip/);
+  assert.match(css, /\.home-page/);
+  assert.match(css, /\.nav-group/);
   assert.match(css, /\.metrics/);
   assert.match(css, /\.data-card/);
   assert.match(css, /\.badge/);

@@ -8,6 +8,10 @@ import { browserWallet, connectInjected, exportBrowserWallet, importBrowserWalle
 import { studioQueue } from "../../../lib/genlayer/queue";
 
 const nav = ["Mission", "Charter", "Objectives", "Capabilities", "Treasury", "Epochs", "Governance", "Constitution", "Keeper", "Audit"] as const;
+const navGroups: Array<{ label: string; items: Section[] }> = [
+  { label: "Organization", items: ["Mission", "Charter", "Objectives", "Capabilities"] },
+  { label: "Control", items: ["Treasury", "Epochs", "Governance", "Constitution", "Keeper", "Audit"] },
+];
 type Section = typeof nav[number];
 type TxState = { hash: string; stage: string; error?: string };
 type Loaded = { org?: string; charter?: string; treasury?: string; policy?: string; epoch?: string; action?: string; capability?: string };
@@ -39,12 +43,16 @@ function parseJson<T>(raw?: string): T | undefined {
 
 function pretty(raw?: string) {
   const parsed = parseJson<unknown>(raw);
-  return parsed ? JSON.stringify(parsed, null, 2) : raw || "Not loaded";
+  return parsed ? JSON.stringify(parsed, null, 2) : raw || "No live state loaded.";
 }
 
 function short(value?: string) {
-  if (!value) return "Not loaded";
+  if (!value) return "--";
   return value.length > 22 ? `${value.slice(0, 10)}...${value.slice(-8)}` : value;
+}
+
+function empty(value?: React.ReactNode) {
+  return value || "--";
 }
 
 function Field({ label, value, onChange, placeholder, multiline, inputMode }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; multiline?: boolean; inputMode?: "numeric" }) {
@@ -61,6 +69,7 @@ function Metric({ label, value, tone }: { label: string; value: React.ReactNode;
 
 function SelectorStrip({ state }: { state: AppState }) {
   return <section className="selector-strip">
+    <div className="selector-help"><span className="eyebrow">Live State</span><p>Enter an organization ID and load its live StudioNet state.</p></div>
     <Field label="Organization ID" value={state.org} onChange={state.setOrg} placeholder="1" />
     <Field label="Epoch" value={state.epochNo} onChange={state.setEpochNo} placeholder="1" inputMode="numeric" />
     <Field label="Action ID" value={state.actionId} onChange={state.setActionId} placeholder="1" />
@@ -79,20 +88,21 @@ function MissionView({ state }: { state: AppState }) {
   const treasury = parseJson<Record<string, string>>(state.loaded.treasury);
   const epoch = parseJson<{ decision?: Record<string, string>; action_id?: string; status?: string }>(state.loaded.epoch);
   const action = parseJson<Record<string, string>>(state.loaded.action);
+  const hasOrg = Boolean(state.loaded.org && org);
   return <div className="view-stack">
     <section className="orrey mission-orrey">
-      <div className="core"><span>MISSION CORE</span><strong>{String(charter?.mission || "Not loaded")}</strong><small>{String(org?.state || "Not loaded")}</small></div>
-      <div className="orbit o1">OBJECTIVE<br /><b>{epoch?.decision?.mission_state || "Not loaded"}</b></div>
-      <div className="orbit o2">CAPABILITY<br /><b>{action?.capability_id || "Not loaded"}</b></div>
-      <div className="orbit o3">RUNWAY<br /><b>{treasury?.available_wei ?? "Not loaded"} wei</b></div>
+      <div className="core"><span>MISSION CORE</span><strong>{String(charter?.mission || (hasOrg ? "Awaiting charter state" : "Select an organization"))}</strong><small>{String(org?.state || "Awaiting organization state")}</small></div>
+      <div className="orbit o1">OBJECTIVE<br /><b>{epoch?.decision?.mission_state || "--"}</b></div>
+      <div className="orbit o2">CAPABILITY<br /><b>{action?.capability_id || "--"}</b></div>
+      <div className="orbit o3">RUNWAY<br /><b>{treasury?.available_wei ? `${treasury.available_wei} wei` : "--"}</b></div>
     </section>
     <section className="metrics">
-      <Metric label="Organization" value={org?.name ? `${org.name}` : "Not loaded"} />
-      <Metric label="State" value={String(org?.state || "Not loaded")} tone={org?.state === "ACTIVE" ? "good" : undefined} />
-      <Metric label="Available treasury" value={treasury?.available_wei ? `${treasury.available_wei} wei` : "Not loaded"} />
-      <Metric label="Latest decision" value={epoch?.decision?.decision || "Not loaded"} />
-      <Metric label="Latest action" value={action?.status || "Not loaded"} />
-      <Metric label="Capability count" value="Load by capability ID" />
+      <Metric label="Organization" value={empty(org?.name ? `${org.name}` : undefined)} />
+      <Metric label="State" value={empty(org?.state ? String(org.state) : undefined)} tone={org?.state === "ACTIVE" ? "good" : undefined} />
+      <Metric label="Available treasury" value={empty(treasury?.available_wei ? `${treasury.available_wei} wei` : undefined)} />
+      <Metric label="Latest decision" value={empty(epoch?.decision?.decision)} />
+      <Metric label="Latest action" value={empty(action?.status)} />
+      <Metric label="Capability lookup" value={state.capabilityId ? "Ready to load" : "--"} />
     </section>
     <section className="panel"><span className="eyebrow">Shortcuts</span><div className="actions"><button onClick={() => state.setActive("Charter")}>Create or inspect charter</button><button onClick={() => state.setActive("Epochs")}>Open consensus epoch</button><button onClick={() => state.setActive("Treasury")}>Manage treasury</button><button onClick={() => state.setActive("Audit")}>Exact reads</button></div></section>
   </div>;
@@ -209,5 +219,5 @@ export function KontynShell({ route = "Mission" }: { route?: string }) {
 
   const state: AppState = { active, setActive, wallet, connect, disconnect: () => setWallet(null), org, setOrg, actionId, setActionId, epochNo, setEpochNo, capabilityId, setCapabilityId, orgName, setOrgName, charter, setCharter, capability, setCapability, policy, setPolicy, manifest, setManifest, counterSourceUrl, setCounterSourceUrl, counterUrl, setCounterUrl, counterHash, setCounterHash, fundWei, setFundWei, result, setResult, notice, setNotice, tx, loaded, loading, createOrg, submit, read, loadState };
 
-  return <main className="shell"><aside><Link className="brand" href="/">KONTYN<small>MISSION ORRERY</small></Link><nav>{nav.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}>{item}</button>)}</nav><p className="rate">STUDIO SAFEGUARD<br /><b>18 RPM - user first</b></p></aside><section className="content"><header><div><span className="eyebrow">STUDIONET - EXPERIMENTAL</span><h1>{active}</h1></div><div className="wallet">{wallet ? <><span className="dot" /> {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)} <button onClick={state.disconnect}>Disconnect</button></> : <><button onClick={() => void connect("injected")}>Use wallet</button><button className="quiet" onClick={() => void connect("browser")}>Browser wallet</button></>}</div></header>{wallet?.warning && <div className="warning"><b>Browser wallet:</b> this key lives only in this browser. <button onClick={() => void navigator.clipboard.writeText(exportBrowserWallet() ?? "")}>Copy backup</button><button onClick={() => { const value = prompt("Paste browser-wallet private key"); if (value) try { setWallet(importBrowserWallet(value)); } catch (error) { setNotice(error instanceof Error ? error.message : "Import failed."); } }}>Import</button></div>}<SelectorStrip state={state} /><SectionView state={state} />{tx && <section className="tx" aria-live="polite"><div><span className="eyebrow">Transaction</span><strong>{tx.stage}</strong>{tx.error && <p>{tx.error}</p>}</div>{tx.hash && <a href={`${explorerBase}/tx/${tx.hash}`} target="_blank" rel="noreferrer">Explorer</a>}<ol><li>Signature</li><li>Submitted</li><li>Proposing</li><li>Committing</li><li>Revealing</li><li>Accepted</li><li>Finalized</li></ol></section>}{notice && <p className="notice" role="status">{notice}</p>}</section></main>;
+  return <main className="shell"><aside><Link className="brand" href="/">KONTYN<small>MISSION ORRERY</small></Link><nav><Link className="nav-home" href="/">Home</Link>{navGroups.map((group) => <div className="nav-group" key={group.label}><span>{group.label}</span>{group.items.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}>{item}</button>)}</div>)}</nav><p className="rate">STUDIO SAFEGUARD<br /><b>18 RPM - user first</b></p></aside><section className="content"><header><div><span className="eyebrow">STUDIONET - EXPERIMENTAL</span><h1>{active}</h1></div><div className="wallet">{wallet ? <><span className="dot" /> {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)} <button onClick={state.disconnect}>Disconnect</button></> : <><button onClick={() => void connect("injected")}>Use wallet</button><button className="quiet" onClick={() => void connect("browser")}>Browser wallet</button></>}</div></header>{wallet?.warning && <div className="warning"><b>Browser wallet:</b> this key lives only in this browser. <button onClick={() => void navigator.clipboard.writeText(exportBrowserWallet() ?? "")}>Copy backup</button><button onClick={() => { const value = prompt("Paste browser-wallet private key"); if (value) try { setWallet(importBrowserWallet(value)); } catch (error) { setNotice(error instanceof Error ? error.message : "Import failed."); } }}>Import</button></div>}<SelectorStrip state={state} /><SectionView state={state} />{tx && <section className="tx" aria-live="polite"><div><span className="eyebrow">Transaction</span><strong>{tx.stage}</strong>{tx.error && <p>{tx.error}</p>}</div>{tx.hash && <a href={`${explorerBase}/tx/${tx.hash}`} target="_blank" rel="noreferrer">Explorer</a>}<ol><li>Signature</li><li>Submitted</li><li>Proposing</li><li>Committing</li><li>Revealing</li><li>Accepted</li><li>Finalized</li></ol></section>}{notice && <p className="notice" role="status">{notice}</p>}</section></main>;
 }

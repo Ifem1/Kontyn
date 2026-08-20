@@ -26,6 +26,9 @@ aside { padding: 28px 16px; border-right: 1px solid #293858; background: #070c18
 nav { display: grid; gap: 5px; }
 nav button { background: transparent; color: #aebbd1; border: 0; text-align: left; border-radius: 6px; }
 nav button.active, nav button:hover { background: #172545; color: white; }
+.nav-home { display: block; color: white; text-decoration: none; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: 6px; margin-bottom: 10px; }
+.nav-group { display: grid; gap: 4px; padding-top: 12px; }
+.nav-group span { color: var(--gold); font: 10px monospace; letter-spacing: .14em; text-transform: uppercase; padding: 0 12px 4px; }
 .rate { font-size: 11px; line-height: 1.8; color: #94a5c0; padding: 26px 12px; }
 .rate b { color: var(--moss); }
 .content { padding: 34px; max-width: 1440px; width: 100%; margin: 0 auto; }
@@ -59,7 +62,7 @@ button.quiet, .wallet button, .warning button { background: transparent; color: 
 
 .selector-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+  grid-template-columns: minmax(220px, 1.2fr) repeat(4, minmax(150px, 1fr)) auto;
   gap: 12px;
   align-items: end;
   margin: 18px 0 24px;
@@ -68,6 +71,7 @@ button.quiet, .wallet button, .warning button { background: transparent; color: 
   padding: 14px;
   border-radius: 8px;
 }
+.selector-help p { margin: 4px 0 0; font-size: 13px; }
 .view-stack { display: grid; gap: 16px; }
 .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, .9fr); gap: 16px; align-items: start; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -140,18 +144,43 @@ td { color: #c8d4e8; }
 .tx strong { display: block; margin-top: 7px; }
 .tx ol { display: flex; gap: 13px; padding: 0; list-style: none; font: 10px monospace; color: #9aabc8; }
 
+.home-page { min-height: 100vh; padding: 26px clamp(18px, 5vw, 72px) 56px; background: radial-gradient(circle at 50% 18%, rgba(42, 64, 111, .55), transparent 32%), var(--navy); }
+.home-nav { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 64px; }
+.home-nav .brand { margin: 0; padding-left: 0; }
+.home-nav > div { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.home-hero { max-width: 920px; padding: 54px 0 44px; }
+.home-hero h1 { font-size: clamp(46px, 8vw, 88px); line-height: .95; max-width: 900px; }
+.home-hero p { max-width: 720px; font-size: 18px; }
+.quiet-link { background: transparent; color: var(--moon); border-color: #42557b; }
+.flow-strip { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 10px; margin: 24px 0; }
+.flow-step { border: 1px solid var(--line); background: rgba(16, 26, 48, .86); padding: 18px; border-radius: 8px; min-height: 112px; }
+.flow-step span { display: block; color: var(--gold); font: 11px monospace; margin-bottom: 20px; }
+.flow-step strong { display: block; color: white; line-height: 1.2; }
+.verified-deploy { margin-top: 16px; }
+.verified-deploy h2 { overflow-wrap: anywhere; }
+
 @media (max-width: 980px) {
   .shell { display: block; }
   aside { position: relative; height: auto; border: 0; padding: 12px; display: flex; align-items: center; gap: 10px; overflow: auto; }
   .brand { margin: 0; white-space: nowrap; }
   nav { display: flex; }
+  .nav-group { display: flex; gap: 4px; padding: 0; align-items: center; }
+  .nav-group span { display: none; }
+  .nav-home { margin: 0; white-space: nowrap; }
   nav button { white-space: nowrap; }
   .rate { display: none; }
   .content { padding: 20px; }
   header { align-items: flex-start; flex-direction: column; }
   h1 { font-size: 35px; }
   .selector-strip, .two-col, .grid-2 { grid-template-columns: 1fr; }
+  .home-nav { align-items: flex-start; flex-direction: column; margin-bottom: 34px; }
+  .home-hero { padding-top: 22px; }
+  .flow-strip { grid-template-columns: 1fr 1fr; }
   .orrey { height: 310px; }
   .tx { align-items: flex-start; flex-direction: column; }
   .tx ol { flex-wrap: wrap; }
+}
+
+@media (max-width: 560px) {
+  .flow-strip { grid-template-columns: 1fr; }
 }
