@@ -1,18 +1,13 @@
-Kontyn StudioNet positive lifecycle verification record, version 1.
+Kontyn StudioNet factual verification record, version 2.
 
-Mission: verify that a pre-approved, bounded test grant can be safely allocated
-and withdrawn only after GenLayer consensus and its permissionless challenge
-window.
+The public test resource "Kontyn lifecycle verifier" is available for the
+disposable StudioNet verification organization. Its renewal/service period is
+currently outstanding. The documented test-only service cost is exactly 10 wei.
 
-Current verified condition: the organization has reserved exactly 10 wei for
-the immutable beneficiary recorded in capability test-grant. The capability is
-approved, its maximum is 10 wei, and the treasury policy permits exactly 10
-wei for this epoch.
+The organization charter and its pre-approved capability registry identify the
+mission, permitted action, beneficiary, amount ceiling, challenge period, and
+treasury limits. This record does not create or amend any of those terms.
 
-Required bounded decision: PROPOSE_CAPABILITY with capability_id test-grant,
-risk_tier TIER_1, and spend_amount_wei 10. This evidence authorizes no other
-capability, recipient, amount, or external instruction.
-
-This is a versioned, public authorization record for the disposable StudioNet
-verification organization only. Its strictly limited scope is the 10-wei
-test-grant defined above; it does not authorize a production payout.
+This document reports a factual, test-only service condition. It authorizes no
+production payment, no recipient, no amount other than the documented test
+cost, and no action beyond what the organization has already pre-approved.

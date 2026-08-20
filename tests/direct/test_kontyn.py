@@ -3,7 +3,7 @@ import hashlib
 import pytest
 
 HASH = "a" * 64
-CHARTER_DATA = {"mission": "Keep a public resource available", "source_bindings": [{"source_url":"https://example.com/mission-status", "metadata_url":"https://example.com/mission-status", "license_url":"https://example.com/license", "source_hash":HASH, "metadata_hash":HASH, "license_hash":HASH, "version_hash":"source-v1-hash"}]}
+CHARTER_DATA = {"mission": "Keep a public resource available", "source_bindings": [{"source_url":"https://example.com/mission-status", "metadata_url":"https://example.com/mission-status", "license_url":"https://example.com/license", "source_hash":HASH, "metadata_hash":HASH, "license_hash":HASH, "version_hash":HASH}]}
 CHARTER = json.dumps(CHARTER_DATA)
 CHARTER_HASH = hashlib.sha256(json.dumps(CHARTER_DATA, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 BENEFICIARY = "0x1111111111111111111111111111111111111111"
@@ -167,7 +167,7 @@ def test_positive_epoch_creates_a_challengeable_expiring_allocation(direct_vm, d
     evidence = "immutable direct-test evidence"
     evidence_hash = hashlib.sha256(evidence.encode("utf-8")).hexdigest()
     sources = ["https://evidence.example/source", "https://evidence.example/metadata", "https://evidence.example/license"]
-    charter_data = {"mission":"Test positive path", "source_bindings":[{"source_url":sources[0], "metadata_url":sources[1], "license_url":sources[2], "source_hash":evidence_hash, "metadata_hash":evidence_hash, "license_hash":evidence_hash, "version_hash":"v1"}]}
+    charter_data = {"mission":"Test positive path", "source_bindings":[{"source_url":sources[0], "metadata_url":sources[1], "license_url":sources[2], "source_hash":evidence_hash, "metadata_hash":evidence_hash, "license_hash":evidence_hash, "version_hash":evidence_hash}]}
     charter_json = json.dumps(charter_data)
     charter_hash = hashlib.sha256(json.dumps(charter_data, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
     contract = direct_deploy("contracts/kontyn.py")
@@ -189,7 +189,7 @@ def test_positive_epoch_creates_a_challengeable_expiring_allocation(direct_vm, d
 
 def test_unavailable_locked_evidence_abstains_instead_of_rolling_back(direct_vm, direct_deploy, direct_alice):
     contract, _ = create(direct_vm, direct_deploy, direct_alice)
-    result = json.loads(contract._assess(["https://unavailable.example/evidence"], [HASH], []))
+    result = json.loads(contract._assess(["https://unavailable.example/evidence"], [HASH], [], "{}"))
     assert result["decision"] == "ABSTAIN"
     assert result["source_fingerprint"] == "SOURCE_UNAVAILABLE"
 

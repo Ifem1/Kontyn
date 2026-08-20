@@ -47,7 +47,7 @@ const canonicalJson = (value) => JSON.stringify(value && typeof value === "objec
   : Array.isArray(value) ? value.map((entry) => JSON.parse(canonicalJson(entry))) : value);
 const sourceUrl = process.env.KONTYN_EVIDENCE_URL ?? "https://example.com/";
 const sourceHash = await immutableHash(sourceUrl);
-const binding = { source_url: sourceUrl, metadata_url: sourceUrl, license_url: sourceUrl, source_hash: sourceHash, metadata_hash: sourceHash, license_hash: sourceHash, version_hash: "example-domain-v1" };
+const binding = { source_url: sourceUrl, metadata_url: sourceUrl, license_url: sourceUrl, source_hash: sourceHash, metadata_hash: sourceHash, license_hash: sourceHash, version_hash: sourceHash };
 const charter = JSON.stringify({ mission: "Exercise bounded treasury lifecycle", source_bindings: [binding] });
 const charterHash = createHash("sha256").update(canonicalJson(JSON.parse(charter))).digest("hex");
 const policy = JSON.stringify({ reserve_floor_wei: "0", max_spend_epoch_wei: "10" });
