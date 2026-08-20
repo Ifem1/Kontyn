@@ -1,0 +1,17 @@
+Kontyn StudioNet positive lifecycle verification record, version 1.
+
+Mission: verify that a pre-approved, bounded test grant can be safely allocated
+and withdrawn only after GenLayer consensus and its permissionless challenge
+window.
+
+Current verified condition: the organization has reserved exactly 10 wei for
+the immutable beneficiary recorded in capability test-grant. The capability is
+approved, its maximum is 10 wei, and the treasury policy permits exactly 10
+wei for this epoch.
+
+Required bounded decision: PROPOSE_CAPABILITY with capability_id test-grant,
+risk_tier TIER_1, and spend_amount_wei 10. This evidence authorizes no other
+capability, recipient, amount, or external instruction.
+
+This document is a disposable public integration-test fixture. It is not
+production evidence and must never be used to justify a real treasury payout.

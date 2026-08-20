@@ -40,7 +40,7 @@ const immutableHash = async (url) => {
 const canonicalJson = (value) => JSON.stringify(value && typeof value === "object" && !Array.isArray(value)
   ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, JSON.parse(canonicalJson(value[key]))]))
   : Array.isArray(value) ? value.map((entry) => JSON.parse(canonicalJson(entry))) : value);
-const sourceUrl = "https://example.com/";
+const sourceUrl = process.env.KONTYN_EVIDENCE_URL ?? "https://example.com/";
 const sourceHash = await immutableHash(sourceUrl);
 const binding = { source_url: sourceUrl, metadata_url: sourceUrl, license_url: sourceUrl, source_hash: sourceHash, metadata_hash: sourceHash, license_hash: sourceHash, version_hash: "example-domain-v1" };
 const charter = JSON.stringify({ mission: "Exercise bounded treasury lifecycle", source_bindings: [binding] });
@@ -63,5 +63,13 @@ try {
   epoch = { submitted: true, hash, value: await founderClient.readContract({ address, functionName: "get_epoch", args: ["1", 1] }) };
 } catch (error) { epoch = { submitted: false, error: error instanceof Error ? error.message : String(error) }; }
 if (!epoch.submitted || !epoch.value) throw new Error(`Epoch was not accepted: ${epoch.error ?? "empty stored epoch"}`);
+const firstEpoch = JSON.parse(epoch.value);
+if (!firstEpoch.action_id) throw new Error(`Positive fixture did not create an action: ${epoch.value}`);
+tx.advance = await write(challengerClient, address, "open_epoch", ["1", 2, JSON.stringify({ sources: [binding.source_url, binding.metadata_url, binding.license_url] })]);
+tx.finalize = await write(challengerClient, address, "finalize_challenge_window", ["1", firstEpoch.action_id]);
+tx.reserve = await write(challengerClient, address, "execute_ready_action", ["1", firstEpoch.action_id]);
+tx.withdraw = await write(beneficiaryClient, address, "withdraw_allocation", ["1", firstEpoch.action_id]);
 const beneficiaryTreasuryRead = await beneficiaryClient.readContract({ address, functionName: "get_treasury_state", args: ["1"] });
-console.log(JSON.stringify({ contract_address: address, founder: founder.address, beneficiary: beneficiary.address, challenger: challenger.address, tx, treasury: beneficiaryTreasuryRead, epoch }, null, 2));
+const action = await beneficiaryClient.readContract({ address, functionName: "get_action", args: ["1", firstEpoch.action_id] });
+if (JSON.parse(action).status !== "WITHDRAWN") throw new Error(`Allocation was not withdrawn: ${action}`);
+console.log(JSON.stringify({ contract_address: address, founder: founder.address, beneficiary: beneficiary.address, challenger: challenger.address, tx, treasury: beneficiaryTreasuryRead, epoch, action }, null, 2));
