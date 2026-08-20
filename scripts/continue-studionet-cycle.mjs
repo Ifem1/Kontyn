@@ -19,6 +19,7 @@ const calls = {
   finalize: ["finalize_challenge_window", [orgId, actionId]],
   reserve: ["execute_ready_action", [orgId, actionId]],
   withdraw: ["withdraw_allocation", [orgId, actionId]],
+  recover_treasury: ["withdraw_unallocated_treasury", [orgId, process.env.KONTYN_RECOVERY_RECIPIENT ?? "", process.env.KONTYN_RECOVERY_AMOUNT ?? ""]],
 };
 const call = calls[step];
 if (!call) throw new Error("Unknown lifecycle step.");
