@@ -14,6 +14,14 @@ export function isKontynTxSuccessful(receipt) {
   );
 }
 
+export async function resolveAuthoritativeReceipt(client, hash, receipt = {}) {
+  const details = await client.getTransaction({ hash });
+  let raw = null;
+  try { const response = await fetch(process.env.GENLAYER_RPC_URL ?? "https://studio.genlayer.com/api", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "gen_getTransactionReceipt", params: [hash] }) }); if (response.ok) raw = (await response.json()).result ?? null; } catch {}
+  const execution = raw?.txExecutionResultName ?? raw?.txExecutionResult ?? details.txExecutionResultName ?? details.tx_execution_result_name;
+  return { ...receipt, ...details, txExecutionResultName: typeof execution === "number" ? (execution === 1 ? ExecutionResult.FINISHED_WITH_RETURN : execution === 2 ? ExecutionResult.FINISHED_WITH_ERROR : String(execution)) : execution };
+}
+
 export function assertKontynTxSuccessful(receipt, hash = "transaction") {
   if (isKontynTxSuccessful(receipt)) return;
   throw new Error(

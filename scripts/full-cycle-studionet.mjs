@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { createAccount, createClient, generatePrivateKey } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 import { TransactionStatus } from "genlayer-js/types";
-import { assertKontynTxSuccessful } from "./tx-success.mjs";
+import { assertKontynTxSuccessful, resolveAuthoritativeReceipt } from "./tx-success.mjs";
 
 const founderKey = process.env.KONTYN_TEST_FOUNDER_KEY ?? generatePrivateKey();
 const beneficiaryKey = process.env.KONTYN_TEST_BENEFICIARY_KEY ?? generatePrivateKey();
@@ -20,7 +20,7 @@ const challengerClient = createClient({ chain: studionet, account: challenger })
 const wait = async (client, hash) => {
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, interval: 20000, retries: 30, fullTransaction: true });
   const details = await client.getTransaction({ hash });
-  return { ...receipt, ...details, statusName: details.statusName ?? receipt.statusName, status_name: details.status_name ?? receipt.status_name };
+  return resolveAuthoritativeReceipt(client, hash, { ...receipt, statusName: details.statusName ?? receipt.statusName, status_name: details.status_name ?? receipt.status_name });
 };
 const assertSuccessful = assertKontynTxSuccessful;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
