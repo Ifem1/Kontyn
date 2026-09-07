@@ -8,7 +8,7 @@ const ret = "FINISHED_WITH_RETURN";
 
 test("Kontyn transaction success predicate is strict", () => {
   assert.equal(isKontynTxSuccessful({ statusName: finalized, resultName: ok, txExecutionResultName: ret }), true);
-  assert.equal(isKontynTxSuccessful({ statusName: finalized, result: 6, consensus_data: { leader_receipt: [{ mode: "leader", execution_result: "SUCCESS", result: { status: "return" }, genvm_result: {} }, { mode: "validator", execution_result: "ERROR", result: { status: "contract_error" } }] } }), true);
+  assert.equal(isKontynTxSuccessful({ statusName: finalized, result: 6, consensus_data: { leader_receipt: [{ mode: "leader", execution_result: "SUCCESS", result: { status: "return" }, genvm_result: {} }] } }), false);
   assert.equal(isKontynTxSuccessful({ statusName: finalized, resultName: ok }), false);
   assert.equal(isKontynTxSuccessful({ statusName: finalized, result: 6 }), false);
   assert.equal(isKontynTxSuccessful({ statusName: finalized, result: 6, consensus_data: { leader_receipt: [{ mode: "leader", execution_result: "ERROR", result: { status: "rollback" }, genvm_result: { raw_error: "boom" } }] } }), false);
