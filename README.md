@@ -58,7 +58,9 @@ Final verified commit: `faa3bc3`. Deployment transaction: [`0xfd9d18bebab0b81031
 
 The finalized disposable-wallet run deployed the final revision, created the organization and policy, added an immutable-beneficiary capability, funded 10 wei, proved unallocated treasury recovery, re-funded 10 wei, ran the positive consensus epoch, advanced the challenge window, finalized it, reserved the allocation, and withdrew to the immutable beneficiary.
 
-Positive lifecycle proof:
+An earlier StudioNet revision completed the disposable-wallet lifecycle below. These transaction hashes are not proof from the current final contract. The final revision `faa3bc3` was subsequently hardened, passed GenVM semantic validation and schema verification, and was deployed at `0xC79E9eE7f38D0D211c7EBF181614bDe7B8b155bC`; a fresh full lifecycle was not rerun against that final address.
+
+Earlier lifecycle proof:
 
 - Setup: deploy `0xf3192d…d025c2`, create organization `0xece1ab…ad2c9`, policy `0x77c665…253ff`, capability `0x95a52b…c4b98`, fund `0x6db33d…33031`, activate `0x285ba6…bc759`.
 - Early epoch rejection: `0x9e0f814105a4be99dfe8a869ee0dd4899f922c7eb8b17c5b304fcefb5c00906d` (expected revert).
@@ -68,7 +70,7 @@ Positive lifecycle proof:
 - Reserve allocation: [`0x963c85e289d492cb4d53cb67ba364fc611cd91a45f02e5d6c03bc7e8ed4805ce`](https://explorer-studio.genlayer.com/tx/0x963c85e289d492cb4d53cb67ba364fc611cd91a45f02e5d6c03bc7e8ed4805ce).
 - Withdraw allocation: [`0x43f44c2370422989f55e476f496dec2fefb2c70b1c543a28ed647acce334ddb7`](https://explorer-studio.genlayer.com/tx/0x43f44c2370422989f55e476f496dec2fefb2c70b1c543a28ed647acce334ddb7).
 
-Final verified action status was `WITHDRAWN`; final treasury was `0` total, `0` reserved, and `0` available. Epoch cadence was 300 seconds, challenge duration 600 seconds, and allocation expiry 300 seconds. `npm run verify:schema` passed against this contract address.
+Earlier verified action status was `WITHDRAWN`; final treasury was `0` total, `0` reserved, and `0` available.
 
 ## Studio limit
 
