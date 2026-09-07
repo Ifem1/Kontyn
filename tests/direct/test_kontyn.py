@@ -303,7 +303,7 @@ def test_challenge_deadline_is_time_based_and_exact_boundary(direct_vm, direct_d
     contract.actions[org_id + ":1"] = json.dumps(action_record(status="CHALLENGE_WINDOW", challenge_deadline=1100))
     set_time(contract, 1099)
     with pytest.raises(Exception, match="CHALLENGE_WINDOW_OPEN"):
-    contract.finalize_challenge_window(org_id, "1")
+        contract.finalize_challenge_window(org_id, "1")
 
 def test_challenge_cannot_be_resolved_early_or_grief_finalization(direct_vm, direct_deploy, direct_alice, direct_bob):
     contract, org_id = create(direct_vm, direct_deploy, direct_alice)
