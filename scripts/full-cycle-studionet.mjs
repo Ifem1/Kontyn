@@ -54,7 +54,7 @@ let address = existingAddress;
 let deployHash = "";
 if (!address) {
   deployHash = await founderClient.deployContract({ code: new Uint8Array(readFileSync("contracts/kontyn.py")), args: [], value: 0n });
-  const deployReceipt = await wait(founderClient, deployHash); assertSuccessful(deployReceipt, deployHash); address = deployReceipt.data?.contract_address;
+  const deployReceipt = await wait(founderClient, deployHash); address = deployReceipt.data?.contract_address; console.error(JSON.stringify({ stage: "deploy", hash: deployHash, contract_address: address })); assertSuccessful(deployReceipt, deployHash);
   console.error(JSON.stringify({ stage: "deploy", hash: deployHash, contract_address: address }));
 }
 if (!address) throw new Error("Deployment did not return an address.");
