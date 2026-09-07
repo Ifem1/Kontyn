@@ -7,15 +7,16 @@ export function HomeLanding() {
   return <main className="home-page">
     <nav className="home-nav"><Link className="brand" href="/">KONTYN<small>MISSION ORRERY</small></Link><div><Link className="button-link quiet-link" href="/orgs/new">Explore Kontyn</Link>{contractAddress && <a className="button-link" href={`${explorerBase}/address/${contractAddress}`} target="_blank" rel="noreferrer">StudioNet explorer</a>}</div></nav>
     <section className="home-hero">
-      <span className="eyebrow">Mission-bound autonomous organizations</span>
+      <span className="eyebrow">Mission-bound founder-constituted autonomy</span>
       <h1>Kontyn turns public evidence into bounded on-chain operations.</h1>
-      <p>Define a mission, bind its evidence by hash, let GenLayer validators judge meaning, then allow deterministic contract rules to enforce exactly which capability can move value.</p>
+      <p>Define a mission, bind its evidence by hash, let GenLayer validators judge meaning, then let deterministic contract rules enforce exactly when and which capability can move value.</p>
       <div className="actions"><Link className="button-link" href="/orgs/new">Explore Kontyn</Link>{contractAddress && <a className="button-link quiet-link" href={`${explorerBase}/address/${contractAddress}`} target="_blank" rel="noreferrer">Open verified deployment</a>}</div>
     </section>
     <section className="flow-strip">{flow.map((item, index) => <div className="flow-step" key={item}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item}</strong></div>)}</section>
     <section className="two-col">
       <div className="panel hero-panel"><span className="eyebrow">Bounded AI Authority</span><h2>AI selects, code enforces.</h2><p>GenLayer consensus can evaluate live, messy, unstructured evidence. Kontyn restricts that judgment to choosing among capabilities the organization already approved. The model cannot invent a recipient, amount, budget, calldata, or new authority.</p></div>
-      <div className="panel"><span className="eyebrow">Deterministic Settlement</span><h2>Every value effect is checked.</h2><p>The contract enforces charter hashes, source manifests, treasury limits, immutable beneficiaries, challenge windows, allocation reservation, withdrawal, and recovery paths. Weak or unavailable evidence fails closed instead of spending.</p></div>
+      <div className="panel"><span className="eyebrow">Deterministic Settlement</span><h2>Every value effect is checked.</h2><p>The contract enforces charter hashes, source manifests, treasury limits, immutable beneficiaries, transaction-time epoch cadence, challenge deadlines, allocation reservation, withdrawal, and recovery paths. Weak or unavailable evidence fails closed instead of spending.</p></div>
+      <div className="panel"><span className="eyebrow">Founder / Constitutional Authority</span><h2>Autonomous does not mean ownerless.</h2><p>Kontyn discloses founder setup, ratification, recovery, safe-mode, treasury-withdrawal and sunset powers. GenLayer consensus handles evidence judgment inside those bounds; code enforces the bounds.</p></div>
     </section>
     <section className="panel verified-deploy">
       <span className="eyebrow">Verified StudioNet Deployment</span>

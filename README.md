@@ -1,6 +1,6 @@
 # Kontyn
 
-Kontyn is a mission-bound autonomous organization on GenLayer. It combines a locked charter, bounded capability registry, treasury policy, and recurring evidence review for operational continuity—not a promise of permanence.
+Kontyn is a mission-bound, founder-constituted autonomous operation on GenLayer. It combines a locked charter, bounded capability registry, treasury policy, deterministic timing, and recurring evidence review for operational continuity—not a promise of permanence or zero-human authority.
 
 The consensus question is narrow: given an organization’s mission, charter-locked public evidence, approved capabilities, and budget envelope, which bounded action—if any—is justified this epoch? A normal contract cannot independently interpret changing public evidence. GenLayer validators can, and Kontyn applies deterministic authority constraints after consensus.
 
@@ -10,7 +10,30 @@ The consensus question is narrow: given an organization’s mission, charter-loc
 - Leader and validators independently fetch the same sources. Both prompts classify fetched content as untrusted quoted evidence, never instructions.
 - Weak, inaccessible, conflicting, malformed, or unsupported evidence must become `INCONCLUSIVE` / `ABSTAIN`.
 - An LLM cannot create an address, recipient, target, calldata, capability, or budget. It can select only a pre-recorded capability, and reserve/spend/risk checks run deterministically afterward.
-- Tier 2 actions need ratification. Every GEN-moving action then enters a permissionless challenge window. Counter-evidence is hash-bound and is resolved by a fresh GenLayer consensus review, never a founder decision. A value-moving capability permanently binds its beneficiary before activation. Finalized actions reserve GEN; only that beneficiary can withdraw, while an unclaimed allocation returns to unreserved treasury after its declared epoch expiry. The founder can recover only non-reserved GEN while the reserve floor remains intact. Rejected, cancelled, and undetermined actions reserve nothing.
+- Epoch cadence is enforced by deterministic GenVM transaction time. `open_epoch` is permissionless but reverts with `EPOCH_NOT_DUE` before the organization’s stored `next_epoch_timestamp`; opening extra epochs cannot shorten challenge or allocation windows.
+- Tier 2 actions need founder ratification before they enter an ordinary challenge window. Every GEN-moving challenge window stores a deterministic `challenge_deadline`; finalization is allowed at `now >= challenge_deadline`, while counter-evidence is allowed only while `now < challenge_deadline`.
+- A value-moving capability permanently binds its beneficiary before activation. Allocation lifetime starts only when `execute_ready_action` reserves funds: the contract stores `allocated_at` and `allocation_expires_at`. The beneficiary can withdraw only while `now < allocation_expires_at`; at or after expiry, withdrawal fails with `ALLOCATION_EXPIRED` and permissionless recovery can return the reserved funds to treasury. Rejected, cancelled, and undetermined actions reserve nothing.
+- Every app/script transaction-success check requires `FINALIZED`, `MAJORITY_AGREE`, and `FINISHED_WITH_RETURN`. Missing execution results, GenVM errors, `MAJORITY_DISAGREE`, `UNDETERMINED`, and non-finalized transactions are failures.
+
+## Founder / Constitutional Authority
+
+Kontyn is bounded autonomous operation under a founder-established constitution. GenLayer consensus evaluates evidence and proposes only settlement-relevant choices inside frozen mission, evidence, capability, beneficiary and treasury context. The model cannot invent capabilities, beneficiaries, budgets, calldata or authority. Ordinary counter-evidence is resolved through GenLayer consensus, not founder whim.
+
+The founder nevertheless retains these explicit constitutional/recovery powers in `contracts/kontyn.py`:
+
+- create an organization and set its draft charter;
+- update the draft charter before activation;
+- configure draft treasury policy;
+- add draft capabilities, including immutable value-capability beneficiaries and time durations;
+- activate the organization once at least one capability exists;
+- ratify or reject Tier-2 actions before they enter the normal challenge window;
+- cancel `READY` or `RATIFICATION_REQUIRED` actions before reservation;
+- withdraw unreserved treasury while preserving the reserve floor;
+- enter safe mode;
+- exit safe mode;
+- sunset the organization.
+
+Non-founders cannot exercise those paths. Anyone may call permissionless liveness/settlement paths when contract preconditions hold, including due epoch opening, challenge finalization, ready-action execution, counter-evidence submission, challenge resolution, and expired-allocation recovery.
 
 ## Commands
 
@@ -23,27 +46,29 @@ npm.cmd run keeper
 npm.cmd run exercise:studionet
 ```
 
-The direct suite covers lifecycle guards, canonical charter commitments, immutable evidence bindings, founder authorization, immutable value-capability beneficiaries, funding accounting, exact reservation, expiry recovery, unfunded allocation rejection, rejected/cancelled recovery, and a mocked consensus proposal through action creation with its challenge and expiry windows. The live suite runs the same StudioNet full-cycle script when disposable test keys are explicitly supplied.
+The direct suite covers lifecycle guards, canonical charter commitments, immutable evidence bindings, founder authorization, immutable value-capability beneficiaries, deterministic epoch cadence, time-based challenge boundaries, reservation-time allocation expiry, no post-expiry withdrawal/recovery race, funding accounting, exact reservation, unfunded allocation rejection, rejected/cancelled recovery, and a mocked consensus proposal through action creation with its challenge and expiry windows. The live suite runs the same StudioNet full-cycle script when disposable test keys are explicitly supplied.
 
-Copy `.env.example` to `.env.local`, deploy first, then set `NEXT_PUBLIC_KONTYN_CONTRACT_ADDRESS`. `scripts/verify-schema.mjs` checks the deployed schema against client call sites. The permissionless keeper is idempotent and opens due epochs only; it never supplies a verdict.
+Copy `.env.example` to `.env.local`, deploy first, then set `NEXT_PUBLIC_KONTYN_CONTRACT_ADDRESS`. `scripts/verify-schema.mjs` checks the deployed schema against client call sites, including timing reads. The permissionless keeper is idempotent and only submits when its local read says the epoch is due; the contract remains the security boundary and rejects early epochs.
 
 ## Studionet verification
 
-Current StudioNet contract: [`0x7E7A09DF5C75cDd94fBFe6527fCE3F15AB50A2d6`](https://explorer-studio.genlayer.com/address/0x7E7A09DF5C75cDd94fBFe6527fCE3F15AB50A2d6).
+Current StudioNet contract: [`0xEA4e9Da4C73c6874fc8c630FA932C5BcE92CF2EF`](https://explorer-studio.genlayer.com/address/0xEA4e9Da4C73c6874fc8c630FA932C5BcE92CF2EF). Earlier addresses are superseded.
 
-Final verified commit: `cfb931a`. Deployment transaction: [`0xe364…e1ca`](https://explorer-studio.genlayer.com/tx/0xe36453b55ada763be0fb9f5369163ae12d4002f3e1b8c16291b5c391603be1ca).
+Final verified commit: recorded after this evidence update. Deployment transaction: [`0xf3192d562871cc8ddc846b8dd7f08b91253ffd900714cd5d93fccb8c54d025c2`](https://explorer-studio.genlayer.com/tx/0xf3192d562871cc8ddc846b8dd7f08b91253ffd900714cd5d93fccb8c54d025c2).
 
 The finalized disposable-wallet run deployed the final revision, created the organization and policy, added an immutable-beneficiary capability, funded 10 wei, proved unallocated treasury recovery, re-funded 10 wei, ran the positive consensus epoch, advanced the challenge window, finalized it, reserved the allocation, and withdrew to the immutable beneficiary.
 
 Positive lifecycle proof:
 
-- Epoch 1 consensus: [`0x8d67…a9af`](https://explorer-studio.genlayer.com/tx/0x8d678e8de5542e42eaa56f5d95897cdded0913269c8b511ea188f293b1e5a9af) accepted `PROPOSE_CAPABILITY` for capability `test-grant`, amount `10`.
-- Epoch 2 challenge-window advance: [`0x189c…1301`](https://explorer-studio.genlayer.com/tx/0x189ce9a49de0c3c24880bf24369356ce1fde0377bf8d43b4d4696ac36f791301).
-- Finalize challenge window: [`0x8c53…6687`](https://explorer-studio.genlayer.com/tx/0x8c53221a48f1adfe7356cecbe42d675df6f5a9c0beddd1aac0a3f64a78436687).
-- Reserve allocation: [`0x9179…d782`](https://explorer-studio.genlayer.com/tx/0x9179fc92c318bcef761d715d71537067584533932314ce04c7dcd5bb4cb9d782).
-- Withdraw allocation: [`0x6c6c…d94a`](https://explorer-studio.genlayer.com/tx/0x6c6c7944fa682b511503252eb0bc9a9d6b663879f5d067b8173473eab1bad94a).
+- Setup: deploy `0xf3192d…d025c2`, create organization `0xece1ab…ad2c9`, policy `0x77c665…253ff`, capability `0x95a52b…c4b98`, fund `0x6db33d…33031`, activate `0x285ba6…bc759`.
+- Early epoch rejection: `0x9e0f814105a4be99dfe8a869ee0dd4899f922c7eb8b17c5b304fcefb5c00906d` (expected revert).
+- Epoch 1 consensus: [`0x03cd09ac855bce2700a995e36e9aa24a50b550aec823bc73d33db9ed97dd1f83`](https://explorer-studio.genlayer.com/tx/0x03cd09ac855bce2700a995e36e9aa24a50b550aec823bc73d33db9ed97dd1f83).
+- Early finalization rejection: `0x35132c07172cd82f982d752a730483f8090b795c234ffec2b3463db183195e25` (expected revert).
+- Finalize challenge window: [`0x30933dbeff5509f4401141eca952fd6e09e2435ab4cb9e7424c418e800c7f43c`](https://explorer-studio.genlayer.com/tx/0x30933dbeff5509f4401141eca952fd6e09e2435ab4cb9e7424c418e800c7f43c).
+- Reserve allocation: [`0x963c85e289d492cb4d53cb67ba364fc611cd91a45f02e5d6c03bc7e8ed4805ce`](https://explorer-studio.genlayer.com/tx/0x963c85e289d492cb4d53cb67ba364fc611cd91a45f02e5d6c03bc7e8ed4805ce).
+- Withdraw allocation: [`0x43f44c2370422989f55e476f496dec2fefb2c70b1c543a28ed647acce334ddb7`](https://explorer-studio.genlayer.com/tx/0x43f44c2370422989f55e476f496dec2fefb2c70b1c543a28ed647acce334ddb7).
 
-Final verified action status was `WITHDRAWN`; final treasury was `0` total, `0` reserved, and `0` available. `npm run verify:schema` passed against this contract address.
+Final verified action status was `WITHDRAWN`; final treasury was `0` total, `0` reserved, and `0` available. Epoch cadence was 300 seconds, challenge duration 600 seconds, and allocation expiry 300 seconds. `npm run verify:schema` passed against this contract address.
 
 ## Studio limit
 

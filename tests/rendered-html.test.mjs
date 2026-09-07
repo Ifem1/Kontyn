@@ -36,7 +36,7 @@ test("defines the Kontyn operational dashboard information architecture", async 
   assert.doesNotMatch(shell, /Your site is taking shape|Building your site/);
 });
 
-test("keeps contract and deployment surfaces out of the UX refactor", async () => {
+test("keeps GenLayer deployment surfaces explicit and receipt checks strict", async () => {
   const [contract, config, queue, fullCycle, exercise, continuation, shell] = await Promise.all([
     readFile(new URL("../contracts/kontyn.py", import.meta.url), "utf8"),
     readFile(new URL("../lib/genlayer/config.ts", import.meta.url), "utf8"),
@@ -51,12 +51,17 @@ test("keeps contract and deployment surfaces out of the UX refactor", async () =
   assert.match(config, /NEXT_PUBLIC_GENLAYER_CHAIN/);
   assert.match(queue, /NEXT_PUBLIC_STUDIO_RPM/);
   assert.match(contract, /class KontynProtocol/);
-  assert.match(fullCycle, /KONTYN_EVIDENCE_URL is required/);
+  assert.match(fullCycle, /raw\.githubusercontent\.com\/Ifem1\/Kontyn\/main\/evidence\/studionet-positive-lifecycle\.txt/);
+  assert.doesNotMatch(fullCycle, /https:\/\/example\.com\//);
   assert.match(exercise, /create_org/);
+  assert.match(exercise, /raw\.githubusercontent\.com\/Ifem1\/Kontyn\/main\/evidence\/studionet-positive-lifecycle\.txt/);
   assert.match(continuation, /recover_treasury/);
+  assert.match(fullCycle, /assertKontynTxSuccessful/);
+  assert.match(continuation, /assertKontynTxSuccessful/);
   assert.match(shell, /writeContract/);
   assert.match(shell, /waitForTransactionReceipt/);
   assert.match(shell, /txExecutionResultName/);
+  assert.match(shell, /assertKontynTxSuccessful/);
   assert.match(shell, /create_org/);
   assert.match(shell, /open_epoch/);
   assert.match(shell, /withdraw_allocation/);
