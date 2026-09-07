@@ -309,6 +309,7 @@ class KontynProtocol(gl.Contract):
         org = self._org(org_id); self._founder(org); self._draft(org)
         charter = self._parse(charter_json, "CHARTER")
         self._validate_charter(charter_hash, charter)
+        org["epoch_duration_seconds"] = self._duration(charter.get("epoch_duration_seconds", org.get("epoch_duration_seconds", DEFAULT_EPOCH_DURATION_SECONDS)), "EPOCH_DURATION")
         org["charter_hash"] = charter_hash; org["policy_version"] += 1
         self.charters[org_id] = json.dumps(charter, sort_keys=True); self._save_org(org_id, org)
 

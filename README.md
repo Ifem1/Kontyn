@@ -54,7 +54,7 @@ Copy `.env.example` to `.env.local`, deploy first, then set `NEXT_PUBLIC_KONTYN_
 
 Current StudioNet contract: [`0xEA4e9Da4C73c6874fc8c630FA932C5BcE92CF2EF`](https://explorer-studio.genlayer.com/address/0xEA4e9Da4C73c6874fc8c630FA932C5BcE92CF2EF). Earlier addresses are superseded.
 
-Final verified commit: recorded after this evidence update. Deployment transaction: [`0xf3192d562871cc8ddc846b8dd7f08b91253ffd900714cd5d93fccb8c54d025c2`](https://explorer-studio.genlayer.com/tx/0xf3192d562871cc8ddc846b8dd7f08b91253ffd900714cd5d93fccb8c54d025c2).
+Final verified commit: `3e014a2`. Deployment transaction: [`0xf3192d562871cc8ddc846b8dd7f08b91253ffd900714cd5d93fccb8c54d025c2`](https://explorer-studio.genlayer.com/tx/0xf3192d562871cc8ddc846b8dd7f08b91253ffd900714cd5d93fccb8c54d025c2).
 
 The finalized disposable-wallet run deployed the final revision, created the organization and policy, added an immutable-beneficiary capability, funded 10 wei, proved unallocated treasury recovery, re-funded 10 wei, ran the positive consensus epoch, advanced the challenge window, finalized it, reserved the allocation, and withdrew to the immutable beneficiary.
 
