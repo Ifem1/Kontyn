@@ -497,6 +497,7 @@ class KontynProtocol(gl.Contract):
         key = org_id + ":" + action_id; challenge = self._parse(self.challenges.get(key, ""), "CHALLENGE")
         action = self._parse(self.actions.get(key, ""), "ACTION")
         if challenge["status"] != "PENDING_REVIEW" or action["status"] != "CHALLENGE_WINDOW": self._fail("CHALLENGE_NOT_PENDING")
+        if self._now() < int(action.get("challenge_deadline", 0)): self._fail("CHALLENGE_WINDOW_OPEN")
         org = self._org(org_id); charter = self._parse(self.charters[org_id], "CHARTER")
         capability = self._parse(self.capabilities[org_id + ":" + action["capability_id"]], "CAPABILITY")
         policy = self._parse(self.policies[org_id], "POLICY")

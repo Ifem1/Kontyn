@@ -303,7 +303,15 @@ def test_challenge_deadline_is_time_based_and_exact_boundary(direct_vm, direct_d
     contract.actions[org_id + ":1"] = json.dumps(action_record(status="CHALLENGE_WINDOW", challenge_deadline=1100))
     set_time(contract, 1099)
     with pytest.raises(Exception, match="CHALLENGE_WINDOW_OPEN"):
-        contract.finalize_challenge_window(org_id, "1")
+    contract.finalize_challenge_window(org_id, "1")
+
+def test_challenge_cannot_be_resolved_early_or_grief_finalization(direct_vm, direct_deploy, direct_alice, direct_bob):
+    contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    contract.actions[org_id + ":1"] = json.dumps(action_record(status="CHALLENGE_WINDOW", challenge_deadline=1100))
+    contract.challenges[org_id + ":1"] = json.dumps({"counter_url":"https://example.com/counter","counter_hash":HASH,"source_url":"https://example.com/mission-status","challenger":str(direct_bob),"status":"PENDING_REVIEW"})
+    set_time(1050)
+    with pytest.raises(Exception, match="CHALLENGE_WINDOW_OPEN"):
+        contract.resolve_challenge(org_id, "1")
     # Opening epochs cannot shorten the stored deadline.
     org = json.loads(contract.get_org(org_id)); org["last_epoch"] = 99; contract._save_org(org_id, org)
     with pytest.raises(Exception, match="CHALLENGE_WINDOW_OPEN"):
