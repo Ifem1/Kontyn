@@ -54,9 +54,9 @@ Copy `.env.example` to `.env.local`, deploy first, then set `NEXT_PUBLIC_KONTYN_
 
 Current StudioNet contract: [`0xC79E9eE7f38D0D211c7EBF181614bDe7B8b155bC`](https://explorer-studio.genlayer.com/address/0xC79E9eE7f38D0D211c7EBF181614bDe7B8b155bC). Earlier addresses are superseded.
 
-Final verified commit: `faa3bc3`. Deployment transaction: [`0xfd9d18bebab0b81031d9dfd8065a9e589757b5aaaacf79fa51403c0970a3a59`](https://explorer-studio.genlayer.com/tx/0xfd9d18bebab0b81031d9dfd8065a9e589757b5aaaacf79fa51403c0970a3a59).
+Final deployed contract source: `faa3bc3`. Deployment transaction: [`0xfd9d18bebab0b81031d9dfd8065a9e589757b5aaaacf79fa51403c0970a3a59`](https://explorer-studio.genlayer.com/tx/0xfd9d18bebab0b81031d9dfd8065a9e589757b5aaaacf79fa51403c0970a3a59).
 
-The finalized disposable-wallet run deployed the final revision, created the organization and policy, added an immutable-beneficiary capability, funded 10 wei, proved unallocated treasury recovery, re-funded 10 wei, ran the positive consensus epoch, advanced the challenge window, finalized it, reserved the allocation, and withdrew to the immutable beneficiary.
+The full-cycle hashes below belong to an earlier StudioNet revision, not the final deployed contract. The final contract passed GenVM semantic validation and schema verification. A fresh StudioNet lifecycle stopped because finalized receipts omit the explicit execution-result field required by Kontyn’s hardened success predicate; `gen_getTransactionReceipt` is also unavailable on the current StudioNet endpoint.
 
 An earlier StudioNet revision completed the disposable-wallet lifecycle below. These transaction hashes are not proof from the current final contract. The final revision `faa3bc3` was subsequently hardened, passed GenVM semantic validation and schema verification, and was deployed at `0xC79E9eE7f38D0D211c7EBF181614bDe7B8b155bC`; a fresh full lifecycle was not rerun against that final address.
 
