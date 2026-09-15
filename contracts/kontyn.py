@@ -518,8 +518,15 @@ class KontynProtocol(gl.Contract):
         org = self._org(org_id); action = self._parse(self.actions.get(org_id + ":" + action_id, ""), "ACTION")
         if org["state"] != "ACTIVE" or action["status"] != "READY": self._fail("ACTION_NOT_READY")
         amount = int(action["amount_wei"])
-        if int(self.balances.get(org_id, u256(0))) - int(self.reserved.get(org_id, u256(0))) < amount:
+        capability = self._parse(self.capabilities.get(org_id + ":" + action["capability_id"], ""), "CAPABILITY")
+        policy = self._parse(self.policies[org_id], "POLICY")
+        if amount > int(capability["max_amount_wei"]) or amount > int(policy["max_spend_epoch_wei"]):
+            self._fail("SPEND_BOUND")
+        available = int(self.balances.get(org_id, u256(0))) - int(self.reserved.get(org_id, u256(0)))
+        if available < amount:
             self._fail("ALLOCATION_UNFUNDED")
+        if available - amount < int(policy["reserve_floor_wei"]):
+            self._fail("TREASURY_RESERVE")
         now = self._now()
         self.reserved[org_id] = u256(self.reserved.get(org_id, u256(0)) + amount)
         action["status"] = "ALLOCATED"

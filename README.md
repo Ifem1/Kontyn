@@ -79,3 +79,5 @@ Studio’s 30 RPM limit cannot be increased by an app. Kontyn keeps foreground t
 ## Honest current limits
 
 Studio can return `UNDETERMINED`; no state changes in that branch and the caller must retry. The source hashes intentionally make mutable web pages fail closed, so organizations should use stable, versioned documents or update their charter while it is still in `DRAFT`. The live proof above uses a hash-bound factual fixture for the positive payout path; before any material real treasury is funded, run the same lifecycle with the real organization evidence and keep the source, metadata, license, and version hashes immutable.
+
+Beneficiary-transfer reconciliation or retry after an external transfer failure is not currently implemented. This is documented non-blocking hardening; Kontyn’s reservation, expiry, and recovery controls remain contract-enforced.

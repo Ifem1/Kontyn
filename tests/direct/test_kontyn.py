@@ -119,6 +119,33 @@ def test_ready_action_reserves_exact_amount(direct_vm, direct_deploy, direct_ali
     assert action["allocated_at"] == 1500
     assert action["allocation_expires_at"] == 1680
 
+def test_ready_action_rechecks_reserve_floor_at_reservation(direct_vm, direct_deploy, direct_alice):
+    contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    contract.configure_treasury_policy(org_id, json.dumps({"reserve_floor_wei":"10", "max_spend_epoch_wei":"100"}))
+    contract.add_capability(org_id, PAY_CAPABILITY)
+    contract.activate_org(org_id)
+    # This action could have been approved while 25 wei was available; availability later falls to 15.
+    contract.balances[org_id] = 15
+    contract.actions[org_id + ":1"] = json.dumps(action_record(status="READY", amount="10"))
+    with pytest.raises(Exception, match="TREASURY_RESERVE"):
+        contract.execute_ready_action(org_id, "1")
+    assert json.loads(contract.get_treasury_state(org_id))["reserved_wei"] == "0"
+
+def test_second_ready_reservation_cannot_breach_reserve_floor(direct_vm, direct_deploy, direct_alice):
+    contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    contract.configure_treasury_policy(org_id, json.dumps({"reserve_floor_wei":"10", "max_spend_epoch_wei":"100"}))
+    contract.add_capability(org_id, PAY_CAPABILITY)
+    contract.activate_org(org_id)
+    contract.balances[org_id] = 25
+    first = action_record(status="READY", amount="10")
+    second = action_record(status="READY", amount="10"); second["id"] = "2"
+    contract.actions[org_id + ":1"] = json.dumps(first)
+    contract.actions[org_id + ":2"] = json.dumps(second)
+    contract.execute_ready_action(org_id, "1")
+    with pytest.raises(Exception, match="TREASURY_RESERVE"):
+        contract.execute_ready_action(org_id, "2")
+    assert json.loads(contract.get_treasury_state(org_id)) == {"available_wei":"15", "reserved_wei":"10", "total_wei":"25"}
+
 def test_safe_abstention_aliases_are_canonicalized(direct_vm, direct_deploy, direct_alice):
     contract, org_id = create(direct_vm, direct_deploy, direct_alice)
     contract.add_capability(org_id, CAPABILITY)
