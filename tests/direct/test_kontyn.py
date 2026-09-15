@@ -126,9 +126,12 @@ def test_ready_action_rechecks_reserve_floor_at_reservation(direct_vm, direct_de
     contract.configure_treasury_policy(org_id, json.dumps({"reserve_floor_wei":"10", "max_spend_epoch_wei":"100"}))
     contract.add_capability(org_id, PAY_CAPABILITY)
     contract.activate_org(org_id)
-    # This action could have been approved while 25 wei was available; availability later falls to 15.
-    contract.balances[org_id] = 15
+    contract.balances[org_id] = 25
+    # The READY action is stored while 25 wei is available.
     contract.actions[org_id + ":1"] = json.dumps(action_record(status="READY", amount="10"))
+    # Founder recovery follows the ordinary unallocated-withdrawal path, reducing availability to 15.
+    contract.withdraw_unallocated_treasury(org_id, BENEFICIARY, "10")
+    assert json.loads(contract.get_treasury_state(org_id)) == {"available_wei":"15", "reserved_wei":"0", "total_wei":"15"}
     with pytest.raises(Exception, match="TREASURY_RESERVE"):
         contract.execute_ready_action(org_id, "1")
     assert json.loads(contract.get_treasury_state(org_id))["reserved_wei"] == "0"
