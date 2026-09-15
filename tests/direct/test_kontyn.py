@@ -90,6 +90,7 @@ def test_rejected_and_canceled_actions_never_reserve_value(direct_vm, direct_dep
 
 def test_unfunded_action_cannot_be_reserved(direct_vm, direct_deploy, direct_alice):
     contract, org_id = create(direct_vm, direct_deploy, direct_alice)
+    contract.configure_treasury_policy(org_id, json.dumps({"reserve_floor_wei":"0", "max_spend_epoch_wei":"100"}))
     contract.add_capability(org_id, PAY_CAPABILITY)
     contract.activate_org(org_id)
     contract.actions[org_id + ":1"] = json.dumps(action_record(status="READY"))
@@ -107,6 +108,7 @@ def test_funding_records_available_treasury(direct_vm, direct_deploy, direct_ali
 def test_ready_action_reserves_exact_amount(direct_vm, direct_deploy, direct_alice):
     contract, org_id = create(direct_vm, direct_deploy, direct_alice)
     contract.balances[org_id] = 25
+    contract.configure_treasury_policy(org_id, json.dumps({"reserve_floor_wei":"0", "max_spend_epoch_wei":"100"}))
     contract.add_capability(org_id, PAY_CAPABILITY)
     contract.activate_org(org_id)
     set_time(contract, 1500)
@@ -358,6 +360,7 @@ def test_counter_evidence_closes_at_exact_deadline(direct_vm, direct_deploy, dir
 def test_allocation_lifetime_starts_at_reservation_not_action_creation(direct_vm, direct_deploy, direct_alice):
     contract, org_id = create(direct_vm, direct_deploy, direct_alice)
     contract.balances[org_id] = 25
+    contract.configure_treasury_policy(org_id, json.dumps({"reserve_floor_wei":"0", "max_spend_epoch_wei":"100"}))
     contract.add_capability(org_id, PAY_CAPABILITY)
     contract.activate_org(org_id)
     old_action = action_record(status="READY")

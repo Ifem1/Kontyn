@@ -148,13 +148,13 @@ The final contract retains the immutable beneficiary binding, capability amount 
 
 ## 9. Verification performed
 
-Static and semantic GenVM lint validation passed in a fresh Python 3.12 environment. The JavaScript build, TypeScript checking, ESLint, schema verification, and receipt adversarial tests passed. The direct suite collected 31 tests, but the official runner attempted to download the unavailable upstream `genvm-universal` `v0.3.0-rc7` artifact and failed before any contract assertion. This is recorded as a tooling limitation, not represented as passing contract evidence.
+Static and semantic GenVM lint validation passed in a fresh Python 3.12 environment. The JavaScript build, TypeScript checking, ESLint, schema verification, and receipt adversarial tests passed. The official GenLayer Direct Mode runner completed all 33 direct tests successfully. Pytest emitted one non-blocking local cache-permission warning after execution.
 
 ## 10. Final deployment parity
 
-- Final source commit: `faa3bc3`
-- Current StudioNet contract: `0xC79E9eE7f38D0D211c7EBF181614bDe7B8b155bC`
-- Deployment transaction: `0xfd9d18bebab0b81031d9dfd8065a9e589757b5aaaacf79fa51403c0970a3a59`
+- Final deployed contract source: `77869af`
+- Current StudioNet contract: `0xFBF6EA41699B5a3655F8bf5FAd20eBDEacACaFa8`
+- Deployment transaction: `0x922c8ee9f9f738ae2486b140337ebe17f65c62be7b9807a6ebf24e703fc01a94`
 - Schema verification: passed against the current address
 - Production frontend: [kontyn.vercel.app](https://kontyn.vercel.app)
 
@@ -162,4 +162,4 @@ The README labels the historical lifecycle hashes as evidence from an earlier re
 
 ## Conclusion
 
-The implementation now has deterministic on-chain timing, explicit challenge and allocation boundaries, strict receipt-success semantics, independently derived validator outcomes, retained financial controls, and a disclosed founder trust model. The remaining limitation is the unavailable upstream direct-test runner artifact; semantic validation and the application-level verification gates pass.
+The implementation now has deterministic on-chain timing, explicit challenge and allocation boundaries, strict receipt-success semantics, independently derived validator outcomes, retained financial controls, and a disclosed founder trust model. GenVM semantic validation, the full Direct Mode suite, and application-level verification gates pass.

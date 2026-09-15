@@ -52,13 +52,13 @@ Copy `.env.example` to `.env.local`, deploy first, then set `NEXT_PUBLIC_KONTYN_
 
 ## Studionet verification
 
-Current StudioNet contract: [`0xC79E9eE7f38D0D211c7EBF181614bDe7B8b155bC`](https://explorer-studio.genlayer.com/address/0xC79E9eE7f38D0D211c7EBF181614bDe7B8b155bC). Earlier addresses are superseded.
+Current StudioNet contract: [`0xFBF6EA41699B5a3655F8bf5FAd20eBDEacACaFa8`](https://explorer-studio.genlayer.com/address/0xFBF6EA41699B5a3655F8bf5FAd20eBDEacACaFa8). Earlier addresses are superseded.
 
-Final deployed contract source: `faa3bc3`. Deployment transaction: [`0xfd9d18bebab0b81031d9dfd8065a9e589757b5aaaacf79fa51403c0970a3a59`](https://explorer-studio.genlayer.com/tx/0xfd9d18bebab0b81031d9dfd8065a9e589757b5aaaacf79fa51403c0970a3a59).
+Final deployed contract source: `77869af`. Deployment transaction: [`0x922c8ee9f9f738ae2486b140337ebe17f65c62be7b9807a6ebf24e703fc01a94`](https://explorer-studio.genlayer.com/tx/0x922c8ee9f9f738ae2486b140337ebe17f65c62be7b9807a6ebf24e703fc01a94).
 
 The full-cycle hashes below belong to an earlier StudioNet revision, not the final deployed contract. The final contract passed GenVM semantic validation and schema verification. A fresh StudioNet lifecycle stopped because finalized receipts omit the explicit execution-result field required by Kontyn’s hardened success predicate; `gen_getTransactionReceipt` is also unavailable on the current StudioNet endpoint.
 
-An earlier StudioNet revision completed the disposable-wallet lifecycle below. These transaction hashes are not proof from the current final contract. The final revision `faa3bc3` was subsequently hardened, passed GenVM semantic validation and schema verification, and was deployed at `0xC79E9eE7f38D0D211c7EBF181614bDe7B8b155bC`; a fresh full lifecycle was not rerun against that final address.
+An earlier StudioNet revision completed the disposable-wallet lifecycle below. These transaction hashes are not proof from the current final contract. The final revision `77869af` subsequently passed GenVM semantic validation, the 33-test direct suite, and schema verification, and was deployed at `0xFBF6EA41699B5a3655F8bf5FAd20eBDEacACaFa8`; a fresh full lifecycle was not rerun against that final address.
 
 Earlier lifecycle proof:
 
