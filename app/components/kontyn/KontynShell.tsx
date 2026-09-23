@@ -135,6 +135,7 @@ function CharterView({ state }: { state: AppState }) {
       <Field label="Organization name" value={state.orgName} onChange={state.setOrgName} placeholder="Your organization name" />
       <div className="readable-card"><span>Mission</span><strong>{charter?.mission || "Awaiting charter JSON"}</strong></div>
       <details open><summary>Advanced JSON charter</summary><Field label="Charter JSON" value={state.charter} onChange={state.setCharter} multiline placeholder="Paste charter JSON with source_bindings" /><button onClick={() => void state.createOrg()}>Create draft organization</button></details>
+      <div className="empty">After the transaction is confirmed, enter its organization ID above and select <strong>Load state</strong>. The organization should read <strong>DRAFT</strong>; then set the treasury policy and add a capability. Values in this form are only a local draft until their own write is confirmed and loaded back from StudioNet.</div>
     </section>
     <section className="panel">
       <span className="eyebrow">Source Commitments</span><h2>Hash-bound evidence</h2>
@@ -155,9 +156,11 @@ function ObjectivesView({ state }: { state: AppState }) {
 }
 
 function CapabilitiesView({ state }: { state: AppState }) {
-  const cap = parseJson<Record<string, string>>(state.loaded.capability || state.capability);
+  const loadedCapability = parseJson<Record<string, string>>(state.loaded.capability);
+  const draftCapability = parseJson<Record<string, string>>(state.capability);
+  const cap = loadedCapability || draftCapability;
   return <div className="two-col">
-    <section className="panel"><span className="eyebrow">Registry</span><h2>Loaded capability</h2>{cap ? <div className="card-grid"><Metric label="Capability ID" value={cap.id} /><Metric label="Action type" value={cap.action_type} /><Metric label="Risk tier" value={cap.risk_tier} /><Metric label="Max amount" value={cap.max_amount_wei ? `${cap.max_amount_wei} wei` : undefined} /><Metric label="Beneficiary" value={cap.beneficiary ? short(cap.beneficiary) : undefined} /><Metric label="Challenge duration" value={cap.challenge_duration_seconds ? `${cap.challenge_duration_seconds}s` : undefined} /><Metric label="Allocation expiry" value={cap.allocation_expiry_seconds ? `${cap.allocation_expiry_seconds}s` : undefined} /></div> : <div className="empty">Enter an org ID and capability ID, then load state.</div>}</section>
+    <section className="panel"><span className="eyebrow">Registry</span><h2>{loadedCapability ? "Loaded on-chain capability" : "Capability draft preview"}</h2>{cap ? <><div className="card-grid"><Metric label="Capability ID" value={cap.id} /><Metric label="Action type" value={cap.action_type} /><Metric label="Risk tier" value={cap.risk_tier} /><Metric label="Max amount" value={cap.max_amount_wei ? `${cap.max_amount_wei} wei` : undefined} /><Metric label="Beneficiary" value={cap.beneficiary ? short(cap.beneficiary) : undefined} /><Metric label="Challenge duration" value={cap.challenge_duration_seconds ? `${cap.challenge_duration_seconds}s` : undefined} /><Metric label="Allocation expiry" value={cap.allocation_expiry_seconds ? `${cap.allocation_expiry_seconds}s` : undefined} /></div>{!loadedCapability && <div className="empty">Preview only — this capability is not stored on-chain. Add it, then enter the organization and capability IDs and load live state to verify it.</div>}</> : <div className="empty">No capability is loaded. First create and load a DRAFT organization, then paste a capability JSON and add it.</div>}</section>
     <section className="panel"><span className="eyebrow">Add Capability</span><h2>Draft-only registry write</h2><Field label="Capability JSON" value={state.capability} onChange={state.setCapability} multiline placeholder="Paste a capability JSON object" /><button onClick={() => void state.submit("add_capability", [state.org.trim(), state.capability], `cap:${state.org.trim()}`)}>Add capability</button></section>
   </div>;
 }
