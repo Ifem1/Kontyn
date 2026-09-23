@@ -15,6 +15,7 @@ const navGroups: Array<{ label: string; items: Section[] }> = [
 ];
 type Section = typeof nav[number];
 type TxState = { hash: string; stage: string; error?: string };
+type SubmitOutcome = { verified: boolean; hash?: string; finalized?: boolean; receipt?: TransactionSnapshot };
 type Loaded = { org?: string; charter?: string; treasury?: string; policy?: string; epoch?: string; action?: string; capability?: string; timing?: string };
 
 type AppState = {
@@ -23,7 +24,7 @@ type AppState = {
   orgName: string; setOrgName: (value: string) => void; charter: string; setCharter: (value: string) => void; capability: string; setCapability: (value: string) => void; policy: string; setPolicy: (value: string) => void;
   manifest: string; setManifest: (value: string) => void; counterSourceUrl: string; setCounterSourceUrl: (value: string) => void; counterUrl: string; setCounterUrl: (value: string) => void; counterHash: string; setCounterHash: (value: string) => void;
   fundWei: string; setFundWei: (value: string) => void; result: string; setResult: (value: string) => void; notice: string; setNotice: (value: string) => void; tx: TxState | null; loaded: Loaded; loading: boolean;
-  createOrg: () => Promise<void>; submit: (method: string, args: unknown[], key: string, value?: bigint) => Promise<boolean>; read: (method: string, args: unknown[]) => Promise<string>; loadState: () => Promise<void>; loadDemo: () => void;
+  createOrg: () => Promise<void>; submit: (method: string, args: unknown[], key: string, value?: bigint) => Promise<SubmitOutcome>; read: (method: string, args: unknown[]) => Promise<string>; loadState: () => Promise<void>; loadDemo: () => void;
 };
 
 function canonical(value: unknown): unknown {
@@ -75,6 +76,15 @@ function formatUnix(value?: string | number) {
 }
 
 type TransactionSnapshot = { statusName?: string; status_name?: string; resultName?: string; result_name?: string; txExecutionResultName?: string; tx_execution_result_name?: string; result?: string | number };
+
+function createdOrgId(receipt?: TransactionSnapshot): string | undefined {
+  const payload = (receipt as TransactionSnapshot & { consensus_data?: { leader_receipt?: Array<{ result?: { status?: string; payload?: { readable?: string } }> } }> })?.consensus_data?.leader_receipt?.[0]?.result?.payload?.readable;
+  if (!payload) return undefined;
+  try {
+    const candidate = JSON.parse(payload);
+    return typeof candidate === "string" && /^\d+$/.test(candidate) ? candidate : undefined;
+  } catch { return undefined; }
+}
 
 function transactionStage(receipt: TransactionSnapshot) {
   const status = receipt.statusName ?? receipt.status_name;
@@ -260,8 +270,26 @@ export function KontynShell({ route = "Mission" }: { route?: string }) {
     setManifest(JSON.stringify({ sources: [source] }, null, 2)); setFundWei("35"); setCounterSourceUrl(source); setCounterUrl(metadata); setCounterHash(metadataHash);
     setNotice("Riverbend Community Archive sample loaded. It uses real, version-pinned source, metadata, and licence hashes, but it remains local sample data until you create an organization.");
   }
-  async function submit(method: string, args: unknown[], key: string, value = 0n): Promise<boolean> { const address = contractAddress; if (!address) { setNotice("Configuration required: set NEXT_PUBLIC_KONTYN_CONTRACT_ADDRESS to the verified contract address."); return false; } if (args.some((item) => typeof item === "string" && item.trim() === "")) { setNotice("Complete every required field; Kontyn never substitutes a stale ID or placeholder value."); return false; } const loadedOrg = parseJson<{ id?: string }>(loaded.org); if (method !== "create_org" && loadedOrg?.id !== org.trim()) { setNotice("Load the selected organization before submitting a write. This prevents a treasury, capability, epoch, or action from being sent under an unverified ID."); return false; } if (!wallet) { setNotice("Choose a wallet before submitting."); return false; } return studioQueue.enqueue(key, "user", async () => { let hash = ""; try { setTx({ hash, stage: "Signature requested" }); const client = writeClient(wallet); if (wallet.mode === "injected") await client.connect("studionet"); hash = await client.writeContract({ address, functionName: method, args: args as never[], value }); studioQueue.rememberTx(hash); setTx({ hash, stage: "Submitted — awaiting acceptance" }); try { const current = await readClient.getTransaction({ hash: hash as never }) as TransactionSnapshot; setTx({ hash, stage: transactionStage(current) }); } catch {} const receipt = await readClient.waitForTransactionReceipt({ hash: hash as never, status: TransactionStatus.FINALIZED, interval: 20000, retries: 30 }); const finality = receipt as TransactionSnapshot; const details = await readClient.getTransaction({ hash: hash as never }) as TransactionSnapshot; const combined = { ...finality, ...details, statusName: details.statusName ?? finality.statusName, status_name: details.status_name ?? finality.status_name }; assertKontynTxSuccessful(combined, hash); studioQueue.forgetTx(hash); setTx({ hash, stage: "Finalized — successful" }); return true; } catch (error) { if (hash) { try { const details = await readClient.getTransaction({ hash: hash as never }) as TransactionSnapshot; const stage = transactionStage(details); setTx({ hash, stage, ...(stage.includes("unavailable") ? { error: "StudioNet did not expose the explicit execution result required to verify success." } : {}) }); return false; } catch { setTx({ hash, stage: "Submitted — receipt temporarily unavailable", error: error instanceof Error ? error.message : "Unknown receipt error" }); return false; } } setTx({ hash: "", stage: "Failed before submission", error: error instanceof Error ? error.message : "Unknown error" }); return false; } }); }
-  async function createOrg() { try { const parsed = JSON.parse(charter); const hash = await sha256(parsed); if (await submit("create_org", [orgName, hash, JSON.stringify(parsed)], "create")) setNotice("Organization creation finalized. Read and enter the returned organization ID before continuing."); } catch { setNotice("Charter must be valid JSON. Add real SHA-256 source, metadata, and license hashes before opening an epoch."); } }
+  async function submit(method: string, args: unknown[], key: string, value = 0n): Promise<SubmitOutcome> { const address = contractAddress; if (!address) { setNotice("Configuration required: set NEXT_PUBLIC_KONTYN_CONTRACT_ADDRESS to the verified contract address."); return { verified: false }; } if (args.some((item) => typeof item === "string" && item.trim() === "")) { setNotice("Complete every required field; Kontyn never substitutes a stale ID or placeholder value."); return { verified: false }; } const loadedOrg = parseJson<{ id?: string }>(loaded.org); if (method !== "create_org" && loadedOrg?.id !== org.trim()) { setNotice("Load the selected organization before submitting a write. This prevents a treasury, capability, epoch, or action from being sent under an unverified ID."); return { verified: false }; } if (!wallet) { setNotice("Choose a wallet before submitting."); return { verified: false }; } return studioQueue.enqueue(key, "user", async () => { let hash = ""; try { setTx({ hash, stage: "Signature requested" }); const client = writeClient(wallet); if (wallet.mode === "injected") await client.connect("studionet"); hash = await client.writeContract({ address, functionName: method, args: args as never[], value }); studioQueue.rememberTx(hash); setTx({ hash, stage: "Submitted — awaiting acceptance" }); try { const current = await readClient.getTransaction({ hash: hash as never }) as TransactionSnapshot; setTx({ hash, stage: transactionStage(current) }); } catch {} const receipt = await readClient.waitForTransactionReceipt({ hash: hash as never, status: TransactionStatus.FINALIZED, interval: 20000, retries: 30 }); const finality = receipt as TransactionSnapshot; const details = await readClient.getTransaction({ hash: hash as never }) as TransactionSnapshot; const combined = { ...finality, ...details, statusName: details.statusName ?? finality.statusName, status_name: details.status_name ?? finality.status_name }; assertKontynTxSuccessful(combined, hash); studioQueue.forgetTx(hash); setTx({ hash, stage: "Finalized — successful" }); return { verified: true, hash, finalized: true, receipt: combined }; } catch (error) { if (hash) { try { const details = await readClient.getTransaction({ hash: hash as never }) as TransactionSnapshot; const stage = transactionStage(details); setTx({ hash, stage, ...(stage.includes("unavailable") ? { error: "StudioNet did not expose the explicit execution result required to verify success." } : {}) }); return { verified: false, hash, finalized: details.statusName === TransactionStatus.FINALIZED, receipt: details }; } catch { setTx({ hash, stage: "Submitted — receipt temporarily unavailable", error: error instanceof Error ? error.message : "Unknown receipt error" }); return { verified: false, hash }; } } setTx({ hash: "", stage: "Failed before submission", error: error instanceof Error ? error.message : "Unknown error" }); return { verified: false }; } }); }
+  async function createOrg() {
+    try {
+      const parsed = JSON.parse(charter); const charterHash = await sha256(parsed);
+      const outcome = await submit("create_org", [orgName, charterHash, JSON.stringify(parsed)], "create");
+      const orgId = createdOrgId(outcome.receipt);
+      if (!orgId || !outcome.finalized || !wallet || !contractAddress) {
+        if (outcome.hash) setNotice("The creation transaction finalized, but Kontyn could not yet confirm its new organization ID. Keep the transaction hash and try again when StudioNet receipt data is available.");
+        return;
+      }
+      const orgRaw = String(await readClient.readContract({ address: contractAddress, functionName: "get_org", args: [orgId] as never[] }));
+      const created = parseJson<{ id?: string; name?: string; founder?: string; charter_hash?: string }>(orgRaw);
+      if (created?.id !== orgId || created.name !== orgName.trim() || created.charter_hash !== charterHash || created.founder?.toLowerCase() !== wallet.address.toLowerCase()) {
+        setNotice("Kontyn could not match the receipt's suggested ID to the newly created on-chain organization. No organization was selected automatically."); return;
+      }
+      const [charterRaw, treasuryRaw, policyRaw, timingRaw] = await Promise.all(["get_charter", "get_treasury_state", "get_treasury_policy", "get_timing_state"].map(async (method) => String(await readClient.readContract({ address: contractAddress, functionName: method, args: [orgId] as never[] }))));
+      setOrg(orgId); setLoaded({ org: orgRaw, charter: charterRaw, treasury: treasuryRaw, policy: policyRaw, timing: timingRaw }); setActive("Treasury");
+      setNotice(`Organization #${orgId} is confirmed by a matching on-chain read and has been selected. Next: set its treasury policy, then add a capability.`);
+    } catch { setNotice("Charter must be valid JSON. Add real SHA-256 source, metadata, and license hashes before opening an epoch."); }
+  }
   async function read(method: string, args: unknown[]) { if (!contractAddress) { setNotice("Configuration required: no contract address is set."); return ""; } try { const value = String(await readClient.readContract({ address: contractAddress, functionName: method, args: args as never[] })); setResult(value); return value; } catch (error) { const value = error instanceof Error ? error.message : "Read failed."; setResult(value); return ""; } }
   async function loadState() {
     if (!contractAddress || !org.trim()) { setNotice("Enter an organization ID and make sure the contract address is configured."); return; }
