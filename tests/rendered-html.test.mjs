@@ -28,6 +28,8 @@ test("defines the Kontyn operational dashboard information architecture", async 
   assert.match(shell, /Copy private key/);
   assert.match(shell, /Export backup/);
   assert.match(shell, /restoreWallet/);
+  assert.match(shell, /Accepted — awaiting finality/);
+  assert.match(shell, /Finalized — execution outcome unavailable/);
   assert.match(shell, /Enter an organization ID and load its live StudioNet state/);
   assert.match(shell, /Select an organization/);
   assert.match(css, /\.selector-strip/);

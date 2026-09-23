@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { TransactionStatus } from "genlayer-js/types";
 import { contractAddress, explorerBase, readClient } from "../../../lib/genlayer/config";
-import { assertKontynTxSuccessful } from "../../../lib/genlayer/tx-success";
+import { assertKontynTxSuccessful, isKontynTxSuccessful } from "../../../lib/genlayer/tx-success";
 import { browserWallet, connectInjected, disconnectWallet, exportBrowserWallet, importBrowserWallet, restoreWallet, writeClient, type WalletState } from "../../../lib/genlayer/wallet";
 import { studioQueue } from "../../../lib/genlayer/queue";
 
@@ -72,6 +72,16 @@ function formatUnix(value?: string | number) {
   const raw = Number(value);
   if (!Number.isFinite(raw) || raw <= 0) return "--";
   return `${new Date(raw * 1000).toLocaleString()} (${raw})`;
+}
+
+type TransactionSnapshot = { statusName?: string; status_name?: string; resultName?: string; result_name?: string; txExecutionResultName?: string; tx_execution_result_name?: string; result?: string | number };
+
+function transactionStage(receipt: TransactionSnapshot) {
+  const status = receipt.statusName ?? receipt.status_name;
+  if (status === "ACCEPTED") return "Accepted — awaiting finality";
+  if (status === "FINALIZED" && !isKontynTxSuccessful(receipt)) return "Finalized — execution outcome unavailable";
+  if (status === "FINALIZED") return "Finalized — successful";
+  return "Submitted — awaiting acceptance";
 }
 
 function SelectorStrip({ state }: { state: AppState }) {
@@ -211,9 +221,26 @@ export function KontynShell({ route = "Mission" }: { route?: string }) {
 
   useEffect(() => { void restoreWallet().then(setWallet).catch(() => undefined); }, []);
 
+  useEffect(() => {
+    const pending = studioQueue.pendingTxs(); const hash = pending.at(-1);
+    if (!hash) return;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const details = await readClient.getTransaction({ hash: hash as never }) as TransactionSnapshot;
+        if (cancelled) return;
+        const stage = transactionStage(details);
+        setTx({ hash, stage, ...(stage.includes("unavailable") ? { error: "StudioNet did not expose the explicit execution result required to verify success." } : {}) });
+        if (isKontynTxSuccessful(details)) studioQueue.forgetTx(hash);
+      } catch { if (!cancelled) setTx({ hash, stage: "Submitted — receipt temporarily unavailable" }); }
+    };
+    void refresh(); const timer = window.setInterval(() => void refresh(), 20_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, []);
+
   async function connect(type: "injected" | "browser") { try { setWallet(type === "injected" ? await connectInjected() : browserWallet()); } catch (error) { setNotice(error instanceof Error ? error.message : "Could not connect wallet."); } }
   function loadDemo() { const source = "https://raw.githubusercontent.com/Ifem1/Kontyn/main/evidence/studionet-positive-lifecycle.txt"; const hash = "a".repeat(64); setOrgName("Kontyn demonstration organization"); setCharter(JSON.stringify({ mission: "Demonstrate bounded treasury governance", epoch_duration_seconds: 300, source_bindings: [{ source_url: source, metadata_url: source, license_url: source, source_hash: hash, metadata_hash: hash, license_hash: hash, version_hash: hash }] }, null, 2)); setPolicy(JSON.stringify({ reserve_floor_wei: "10", max_spend_epoch_wei: "100" }, null, 2)); setCapability(JSON.stringify({ id: "demo-grant", action_type: "PAY_GRANT_RECIPIENT", risk_tier: "TIER_1", max_amount_wei: "10", beneficiary: "0x1111111111111111111111111111111111111111", challenge_duration_seconds: 300, allocation_expiry_seconds: 600 }, null, 2)); setManifest(JSON.stringify({ sources: [source] }, null, 2)); setFundWei("10"); setCapabilityId("demo-grant"); setEpochNo("1"); setActionId("1"); setCounterSourceUrl(source); setCounterUrl(source); setCounterHash(hash); setNotice("Demo inputs loaded. They are not on-chain state: use a wallet and real immutable hashes before submitting any transaction."); }
-  async function submit(method: string, args: unknown[], key: string, value = 0n): Promise<boolean> { const address = contractAddress; if (!address) { setNotice("Configuration required: set NEXT_PUBLIC_KONTYN_CONTRACT_ADDRESS to the verified contract address."); return false; } if (args.some((item) => typeof item === "string" && item.trim() === "")) { setNotice("Complete every required field; Kontyn never substitutes a stale ID or placeholder value."); return false; } if (!wallet) { setNotice("Choose a wallet before submitting."); return false; } return studioQueue.enqueue(key, "user", async () => { try { setTx({ hash: "", stage: "Signature requested" }); const client = writeClient(wallet); if (wallet.mode === "injected") await client.connect("studionet"); const hash = await client.writeContract({ address, functionName: method, args: args as never[], value }); studioQueue.rememberTx(hash); setTx({ hash, stage: "Submitted - proposing" }); const receipt = await readClient.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, interval: 20000, retries: 30 }); const finality = receipt as { resultName?: string; result_name?: string; statusName?: string; status_name?: string }; const details = await readClient.getTransaction({ hash }) as { resultName?: string; result_name?: string; txExecutionResultName?: string; tx_execution_result_name?: string; statusName?: string; status_name?: string }; assertKontynTxSuccessful({ ...finality, ...details, statusName: details.statusName ?? finality.statusName, status_name: details.status_name ?? finality.status_name }, hash); studioQueue.forgetTx(hash); setTx({ hash, stage: String(finality.statusName ?? finality.status_name) }); return true; } catch (error) { setTx({ hash: "", stage: "Failed", error: error instanceof Error ? error.message : "Unknown error" }); return false; } }); }
+  async function submit(method: string, args: unknown[], key: string, value = 0n): Promise<boolean> { const address = contractAddress; if (!address) { setNotice("Configuration required: set NEXT_PUBLIC_KONTYN_CONTRACT_ADDRESS to the verified contract address."); return false; } if (args.some((item) => typeof item === "string" && item.trim() === "")) { setNotice("Complete every required field; Kontyn never substitutes a stale ID or placeholder value."); return false; } if (!wallet) { setNotice("Choose a wallet before submitting."); return false; } return studioQueue.enqueue(key, "user", async () => { let hash = ""; try { setTx({ hash, stage: "Signature requested" }); const client = writeClient(wallet); if (wallet.mode === "injected") await client.connect("studionet"); hash = await client.writeContract({ address, functionName: method, args: args as never[], value }); studioQueue.rememberTx(hash); setTx({ hash, stage: "Submitted — awaiting acceptance" }); try { const current = await readClient.getTransaction({ hash: hash as never }) as TransactionSnapshot; setTx({ hash, stage: transactionStage(current) }); } catch {} const receipt = await readClient.waitForTransactionReceipt({ hash: hash as never, status: TransactionStatus.FINALIZED, interval: 20000, retries: 30 }); const finality = receipt as TransactionSnapshot; const details = await readClient.getTransaction({ hash: hash as never }) as TransactionSnapshot; const combined = { ...finality, ...details, statusName: details.statusName ?? finality.statusName, status_name: details.status_name ?? finality.status_name }; assertKontynTxSuccessful(combined, hash); studioQueue.forgetTx(hash); setTx({ hash, stage: "Finalized — successful" }); return true; } catch (error) { if (hash) { try { const details = await readClient.getTransaction({ hash: hash as never }) as TransactionSnapshot; const stage = transactionStage(details); setTx({ hash, stage, ...(stage.includes("unavailable") ? { error: "StudioNet did not expose the explicit execution result required to verify success." } : {}) }); return false; } catch { setTx({ hash, stage: "Submitted — receipt temporarily unavailable", error: error instanceof Error ? error.message : "Unknown receipt error" }); return false; } } setTx({ hash: "", stage: "Failed before submission", error: error instanceof Error ? error.message : "Unknown error" }); return false; } }); }
   async function createOrg() { try { const parsed = JSON.parse(charter); const hash = await sha256(parsed); if (await submit("create_org", [orgName, hash, JSON.stringify(parsed)], "create")) setNotice("Organization creation finalized. Read and enter the returned organization ID before continuing."); } catch { setNotice("Charter must be valid JSON. Add real SHA-256 source, metadata, and license hashes before opening an epoch."); } }
   async function read(method: string, args: unknown[]) { if (!contractAddress) { setNotice("Configuration required: no contract address is set."); return ""; } try { const value = String(await readClient.readContract({ address: contractAddress, functionName: method, args: args as never[] })); setResult(value); return value; } catch (error) { const value = error instanceof Error ? error.message : "Read failed."; setResult(value); return ""; } }
   async function loadState() {
