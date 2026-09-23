@@ -108,6 +108,36 @@ function SelectorStrip({ state }: { state: AppState }) {
   </section>;
 }
 
+function WorkflowNextStep({ state }: { state: AppState }) {
+  const org = parseJson<{ id?: string; state?: string }>(state.loaded.org);
+  const policy = parseJson<{ reserve_floor_wei?: string; max_spend_epoch_wei?: string }>(state.loaded.policy);
+  const treasury = parseJson<{ total_wei?: string }>(state.loaded.treasury);
+  const storedCapability = parseJson<{ id?: string }>(state.loaded.capability);
+  const draftedCapability = parseJson<{ id?: string }>(state.capability);
+  const transactionInFlight = /Queued|Signature|Submitted|Accepted/.test(state.tx?.stage ?? "");
+  const transactionFinalized = (state.tx?.stage ?? "").startsWith("Finalized");
+  let title = "Start by loading an organization";
+  let detail = "Enter the organization ID, then select Load state. Kontyn will not send any organization-scoped write until it has verified the selected organization.";
+  let action: (() => void) | undefined;
+  let label = "Load state";
+  if (org?.id && transactionInFlight) {
+    title = "Transaction in progress"; detail = "Wait for the current transaction to finalize. Do not repeat the click or move to the next setup step yet."; label = "Refresh live state"; action = () => void state.loadState();
+  } else if (org?.id && transactionFinalized) {
+    title = "Transaction finalized — refresh live state"; detail = "Refresh the contract state now. Kontyn will then show the exact next required setup step."; label = "Refresh live state"; action = () => void state.loadState();
+  } else if (org?.id && org.state === "DRAFT" && (policy?.reserve_floor_wei === "0" || policy?.max_spend_epoch_wei === "0" || !policy)) {
+    title = "Next: set the treasury policy"; detail = "Define the reserve floor and maximum spending bound before funding or activation."; label = "Go to Treasury"; action = () => state.setActive("Treasury");
+  } else if (org?.id && org.state === "DRAFT" && !storedCapability?.id) {
+    title = "Next: add the approved capability"; detail = draftedCapability?.id ? `Add ${draftedCapability.id}, then refresh live state to verify it is stored.` : "Add at least one capability. A draft organization cannot activate without one."; label = "Go to Capabilities"; action = () => state.setActive("Capabilities");
+  } else if (org?.id && org.state === "DRAFT" && Number(treasury?.total_wei ?? "0") === 0) {
+    title = "Next: fund the treasury"; detail = "Fund the organization with the amount needed for its bounded operations while preserving its reserve floor."; label = "Go to Treasury"; action = () => state.setActive("Treasury");
+  } else if (org?.id && org.state === "DRAFT") {
+    title = "Next: activate the organization"; detail = "The charter, policy, capability, and funding are present. Activate to begin the deterministic epoch cadence."; label = "Go to Treasury"; action = () => state.setActive("Treasury");
+  } else if (org?.id && org.state === "ACTIVE") {
+    title = "Next: wait for the due epoch, then open it"; detail = "Open Epochs only when the contract's displayed due time arrives. The contract rejects early attempts."; label = "Go to Epochs"; action = () => state.setActive("Epochs");
+  }
+  return <section className="next-step" aria-live="polite"><span className="eyebrow">Guided workflow</span><div><div><strong>{title}</strong><p>{detail}</p></div>{action && <button className="quiet" onClick={action}>{label}</button>}</div></section>;
+}
+
 function StateCard({ title, raw }: { title: string; raw?: string }) {
   return <section className="panel"><span className="eyebrow">{title}</span><pre className="result compact">{pretty(raw)}</pre></section>;
 }
@@ -288,7 +318,8 @@ export function KontynShell({ route = "Mission" }: { route?: string }) {
         setNotice("Kontyn could not match the receipt's suggested ID to the newly created on-chain organization. No organization was selected automatically."); return;
       }
       const [charterRaw, treasuryRaw, policyRaw, timingRaw] = await Promise.all(["get_charter", "get_treasury_state", "get_treasury_policy", "get_timing_state"].map(async (method) => String(await readClient.readContract({ address, functionName: method, args: [orgId] as never[] }))));
-      setOrg(orgId); setLoaded({ org: orgRaw, charter: charterRaw, treasury: treasuryRaw, policy: policyRaw, timing: timingRaw }); setActive("Treasury");
+      const draftedCapabilityId = parseJson<{ id?: string }>(capability)?.id;
+      setOrg(orgId); if (draftedCapabilityId) setCapabilityId(draftedCapabilityId); setLoaded({ org: orgRaw, charter: charterRaw, treasury: treasuryRaw, policy: policyRaw, timing: timingRaw }); setActive("Treasury");
       setNotice(`Organization #${orgId} is confirmed by a matching on-chain read and has been selected. Next: set its treasury policy, then add a capability.`);
     } catch { setNotice("Charter must be valid JSON. Add real SHA-256 source, metadata, and license hashes before opening an epoch."); }
   }
@@ -315,5 +346,5 @@ export function KontynShell({ route = "Mission" }: { route?: string }) {
 
   const state: AppState = { active, setActive, wallet, connect, disconnect: () => { disconnectWallet(); setWallet(null); }, org, setOrg, actionId, setActionId, epochNo, setEpochNo, capabilityId, setCapabilityId, orgName, setOrgName, charter, setCharter, capability, setCapability, policy, setPolicy, manifest, setManifest, counterSourceUrl, setCounterSourceUrl, counterUrl, setCounterUrl, counterHash, setCounterHash, fundWei, setFundWei, result, setResult, notice, setNotice, tx, loaded, loading, createOrg, submit, read, loadState, loadDemo };
 
-  return <main className="shell"><aside><Link className="brand" href="/">KONTYN<small>MISSION ORRERY</small></Link><nav><Link className="nav-home" href="/">Home</Link>{navGroups.map((group) => <div className="nav-group" key={group.label}><span>{group.label}</span>{group.items.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}>{item}</button>)}</div>)}</nav><p className="rate">STUDIO SAFEGUARD<br /><b>18 RPM - user first</b></p></aside><section className="content"><header><div><span className="eyebrow">STUDIONET - EXPERIMENTAL</span><h1>{active}</h1></div><div className="wallet">{wallet ? <><span className="dot" /> {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)} <button onClick={state.disconnect}>Disconnect</button></> : <><button onClick={() => void connect("injected")}>Use wallet</button><button className="quiet" onClick={() => void connect("browser")}>Browser wallet</button></>}</div></header>{wallet?.warning && <div className="warning"><b>Browser wallet:</b> this key is stored only in this browser. <button onClick={() => { void navigator.clipboard.writeText(exportBrowserWallet() ?? ""); setNotice("Browser-wallet private key copied. Store it securely."); }}>Copy private key</button><button onClick={() => { const key = exportBrowserWallet(); if (!key) return; const url = URL.createObjectURL(new Blob([key + "\n"], { type: "text/plain" })); const link = document.createElement("a"); link.href = url; link.download = "kontyn-browser-wallet-private-key.txt"; link.click(); URL.revokeObjectURL(url); setNotice("Browser-wallet backup exported. Store it securely."); }}>Export backup</button><button onClick={() => { const value = prompt("Paste browser-wallet private key"); if (value) try { setWallet(importBrowserWallet(value)); } catch (error) { setNotice(error instanceof Error ? error.message : "Import failed."); } }}>Import</button></div>}<SelectorStrip state={state} /><SectionView state={state} />{tx && <section className="tx" aria-live="polite"><div><span className="eyebrow">Transaction</span><strong>{tx.stage}</strong>{tx.error && <p>{tx.error}</p>}</div>{tx.hash && <a href={`${explorerBase}/tx/${tx.hash}`} target="_blank" rel="noreferrer">Explorer</a>}<ol><li>Signature</li><li>Submitted</li><li>Proposing</li><li>Committing</li><li>Revealing</li><li>Accepted</li><li>Finalized</li></ol></section>}{notice && <p className="notice" role="status">{notice}</p>}</section></main>;
+  return <main className="shell"><aside><Link className="brand" href="/">KONTYN<small>MISSION ORRERY</small></Link><nav><Link className="nav-home" href="/">Home</Link>{navGroups.map((group) => <div className="nav-group" key={group.label}><span>{group.label}</span>{group.items.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}>{item}</button>)}</div>)}</nav><p className="rate">STUDIO SAFEGUARD<br /><b>18 RPM - user first</b></p></aside><section className="content"><header><div><span className="eyebrow">STUDIONET - EXPERIMENTAL</span><h1>{active}</h1></div><div className="wallet">{wallet ? <><span className="dot" /> {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)} <button onClick={state.disconnect}>Disconnect</button></> : <><button onClick={() => void connect("injected")}>Use wallet</button><button className="quiet" onClick={() => void connect("browser")}>Browser wallet</button></>}</div></header>{wallet?.warning && <div className="warning"><b>Browser wallet:</b> this key is stored only in this browser. <button onClick={() => { void navigator.clipboard.writeText(exportBrowserWallet() ?? ""); setNotice("Browser-wallet private key copied. Store it securely."); }}>Copy private key</button><button onClick={() => { const key = exportBrowserWallet(); if (!key) return; const url = URL.createObjectURL(new Blob([key + "\n"], { type: "text/plain" })); const link = document.createElement("a"); link.href = url; link.download = "kontyn-browser-wallet-private-key.txt"; link.click(); URL.revokeObjectURL(url); setNotice("Browser-wallet backup exported. Store it securely."); }}>Export backup</button><button onClick={() => { const value = prompt("Paste browser-wallet private key"); if (value) try { setWallet(importBrowserWallet(value)); } catch (error) { setNotice(error instanceof Error ? error.message : "Import failed."); } }}>Import</button></div>}<SelectorStrip state={state} /><WorkflowNextStep state={state} /><SectionView state={state} />{tx && <section className="tx" aria-live="polite"><div><span className="eyebrow">Transaction</span><strong>{tx.stage}</strong>{tx.error && <p>{tx.error}</p>}</div>{tx.hash && <a href={`${explorerBase}/tx/${tx.hash}`} target="_blank" rel="noreferrer">Explorer</a>}<ol><li>Signature</li><li>Submitted</li><li>Proposing</li><li>Committing</li><li>Revealing</li><li>Accepted</li><li>Finalized</li></ol></section>}{notice && <p className="notice notice-toast" role="status">{notice}</p>}</section></main>;
 }

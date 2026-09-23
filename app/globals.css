@@ -59,6 +59,7 @@ button.quiet, .wallet button, .warning button { background: transparent; color: 
 .dot { width: 9px; height: 9px; background: var(--moss); border-radius: 50%; }
 .warning, .notice { margin: 18px 0; padding: 12px; border-left: 3px solid var(--gold); background: #182038; color: #dce6f8; border-radius: 0 6px 6px 0; }
 .notice { font-size: 13px; }
+.notice-toast { position: fixed; right: 24px; bottom: 24px; z-index: 20; width: min(480px, calc(100vw - 48px)); margin: 0; box-shadow: 0 14px 36px rgba(0, 0, 0, .34); }
 
 .selector-strip {
   display: grid;
@@ -72,6 +73,10 @@ button.quiet, .wallet button, .warning button { background: transparent; color: 
   border-radius: 8px;
 }
 .selector-help p { margin: 4px 0 0; font-size: 13px; }
+.next-step { border: 1px solid rgba(229, 184, 92, .8); border-left: 4px solid var(--gold); background: linear-gradient(100deg, rgba(229, 184, 92, .16), rgba(16, 26, 48, .96)); padding: 16px 18px; border-radius: 8px; margin: -8px 0 24px; box-shadow: 0 10px 26px rgba(0, 0, 0, .18); }
+.next-step > div { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.next-step strong { display: block; font-size: 18px; color: white; margin-top: 6px; }
+.next-step p { margin: 6px 0 0; max-width: 760px; }
 .view-stack { display: grid; gap: 16px; }
 .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, .9fr); gap: 16px; align-items: start; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -173,12 +178,14 @@ td { color: #c8d4e8; }
   header { align-items: flex-start; flex-direction: column; }
   h1 { font-size: 35px; }
   .selector-strip, .two-col, .grid-2 { grid-template-columns: 1fr; }
+  .next-step > div { align-items: flex-start; flex-direction: column; }
   .home-nav { align-items: flex-start; flex-direction: column; margin-bottom: 34px; }
   .home-hero { padding-top: 22px; }
   .flow-strip { grid-template-columns: 1fr 1fr; }
   .orrey { height: 310px; }
   .tx { align-items: flex-start; flex-direction: column; }
   .tx ol { flex-wrap: wrap; }
+  .notice-toast { right: 14px; bottom: 14px; width: calc(100vw - 28px); }
 }
 
 @media (max-width: 560px) {
