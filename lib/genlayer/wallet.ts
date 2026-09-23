@@ -2,6 +2,7 @@
 import { createAccount, createClient, generatePrivateKey } from "genlayer-js";
 import { chain, chainName } from "./config";
 const KEY = "kontyn.browser-wallet.v1";
+const MODE_KEY = "kontyn.wallet-mode.v1";
 type Provider = { request(a: { method: string; params?: unknown[] }): Promise<unknown> };
 export type WalletState = { address: string; mode: "injected" | "browser"; warning: boolean };
 export async function connectInjected(): Promise<WalletState> {
@@ -10,12 +11,23 @@ export async function connectInjected(): Promise<WalletState> {
   const accounts = await provider.request({ method: "eth_requestAccounts" }) as string[];
   if (!accounts[0]) throw new Error("Wallet did not return an account.");
   const client = createClient({ chain, account: accounts[0] as `0x${string}`, provider });
-  await client.connect(chainName); return { address: accounts[0], mode: "injected", warning: false };
+  await client.connect(chainName); const wallet = { address: accounts[0], mode: "injected" as const, warning: false }; localStorage.setItem(MODE_KEY, wallet.mode); return wallet;
 }
 export function browserWallet(): WalletState {
   let key = localStorage.getItem(KEY); if (!key) { key = generatePrivateKey(); localStorage.setItem(KEY, key); }
-  return { address: createAccount(key as `0x${string}`).address, mode: "browser", warning: true };
+  const wallet = { address: createAccount(key as `0x${string}`).address, mode: "browser" as const, warning: true }; localStorage.setItem(MODE_KEY, wallet.mode); return wallet;
 }
+export async function restoreWallet(): Promise<WalletState | null> {
+  const mode = localStorage.getItem(MODE_KEY);
+  if (mode === "browser" && localStorage.getItem(KEY)) return browserWallet();
+  if (mode === "injected") {
+    const provider = (window as Window & { ethereum?: Provider }).ethereum;
+    const accounts = provider ? await provider.request({ method: "eth_accounts" }) as string[] : [];
+    if (accounts[0]) return { address: accounts[0], mode: "injected", warning: false };
+  }
+  return null;
+}
+export function disconnectWallet() { localStorage.removeItem(MODE_KEY); }
 export function writeClient(wallet: WalletState) {
   if (wallet.mode === "browser") { const key = localStorage.getItem(KEY); if (!key) throw new Error("Browser wallet key unavailable."); return createClient({ chain, account: createAccount(key as `0x${string}`) }); }
   const provider = (window as Window & { ethereum?: Provider }).ethereum; if (!provider) throw new Error("Injected wallet unavailable.");

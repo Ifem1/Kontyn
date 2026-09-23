@@ -24,6 +24,10 @@ test("defines the Kontyn operational dashboard information architecture", async 
     assert.match(shell, new RegExp(`function ${view}`));
   }
   assert.match(shell, /Load state/);
+  assert.match(shell, /Use demo data/);
+  assert.match(shell, /Copy private key/);
+  assert.match(shell, /Export backup/);
+  assert.match(shell, /restoreWallet/);
   assert.match(shell, /Enter an organization ID and load its live StudioNet state/);
   assert.match(shell, /Select an organization/);
   assert.match(css, /\.selector-strip/);
