@@ -288,7 +288,7 @@ export function KontynShell({ route = "Mission" }: { route?: string }) {
   useEffect(() => { void restoreWallet().then(setWallet).catch(() => undefined); }, []);
 
   useEffect(() => {
-    const pending = studioQueue.pendingTxs(); const hash = pending.at(-1);
+    const pending = studioQueue.pendingTxs(); const hash = tx?.hash || pending.at(-1);
     if (!hash) return;
     let cancelled = false;
     const refresh = async () => {
@@ -298,11 +298,12 @@ export function KontynShell({ route = "Mission" }: { route?: string }) {
         const stage = transactionStage(details);
         setTx({ hash, stage, ...(stage.includes("unavailable") ? { error: "StudioNet did not expose the explicit execution result required to verify success." } : {}) });
         if (isKontynTxSuccessful(details)) studioQueue.forgetTx(hash);
+        if (details.statusName === TransactionStatus.FINALIZED && !isKontynTxSuccessful(details)) setNotice("Transaction finalized. StudioNet omitted the explicit execution-result field Kontyn requires for receipt-level success. Refresh live state to confirm the resulting on-chain step and continue.");
       } catch { if (!cancelled) setTx({ hash, stage: "Submitted — receipt temporarily unavailable" }); }
     };
     void refresh(); const timer = window.setInterval(() => void refresh(), 20_000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, []);
+  }, [tx?.hash]);
 
   async function connect(type: "injected" | "browser") { try { setWallet(type === "injected" ? await connectInjected() : browserWallet()); } catch (error) { setNotice(error instanceof Error ? error.message : "Could not connect wallet."); } }
   function loadDemo() {
